@@ -1,4 +1,4 @@
-import type {Vec} from './physical';
+import type {Vec} from './physical.js';
 export const categories=['chair','table','bridge','tree','tower','arch','house','cube','staircase'] as const;
 export interface ShapeTarget {category:string;attributes:string[];unknown:string[];active:boolean;}
 export function parseShape(prompt:string):ShapeTarget{

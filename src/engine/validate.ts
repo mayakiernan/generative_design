@@ -1,4 +1,4 @@
-import {key,type Vec,type Edge} from './physical';
+import {key,type Vec,type Edge} from './physical.js';
 export function validate(nodes:Vec[],edges:Edge[],n:number,e:number):string[]{
  const errors:string[]=[];
  if(nodes.length!==n||edges.length!==e)errors.push('Component counts do not match.');

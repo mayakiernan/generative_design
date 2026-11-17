@@ -9,4 +9,4 @@ export const SPACING=dimensions().spacing;
 export const key=(p:Vec)=>p.join(',');
 export const add=(a:Vec,b:Vec):Vec=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 export type Edge=[number,number];
-export interface Design {seed:number;nodes:Vec[];edges:Edge[];fingerprint:string;score:number;experimental:boolean;descriptor:number[];groundContacts:number;}
+export interface Design {shapeSimilarity?:number;stabilityScore?:number;seed:number;nodes:Vec[];edges:Edge[];fingerprint:string;score:number;experimental:boolean;descriptor:number[];groundContacts:number;}

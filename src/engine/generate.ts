@@ -1,3 +1,5 @@
+import {parseShape,targetField,shapeScore,type ShapeTarget} from './shape';
+export interface GenerationOptions {toothpickCount:number;connectorCount:number;freestandingOnly:boolean;shapePrompt:string;seed?:number;}
 import {DIRECTIONS,add,key,type Vec,type Edge,type Design} from './physical';
 import {score} from './scoring';import {feasibility,validate} from './validate';
 export function rng(seed:number){return ()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
@@ -8,15 +10,16 @@ export function fingerprint(nodes:Vec[],edges:Edge[]){
  const s=ks.slice().sort().join(';')+'|'+edges.map(([a,b])=>[ks[a],ks[b]].sort().join('/')).sort().join(';');if(s<best)best=s;
  }return best;
 }
-function candidate(n:number,e:number,seed:number):Design|null{
+function candidate(n:number,e:number,seed:number,target:ShapeTarget):Design|null{
  const random=rng(seed),nodes:Vec[]=[[0,0,0]],occupied=new Map([['0,0,0',0]]),tree:Edge[]=[];
- const axes=[.4+random()*2,.4+random()*2,.4+random()*2],compact=e>n-1?2+random()*5:random()*3;
+ const field=targetField(target,n,random);
+ const axes=[.4+random()*2,.4+random()*2,.4+random()*2],compact=target.active?2+random()*3:e>n-1?2+random()*5:random()*3;
  for(let i=1;i<n;i++){
   const frontier=new Map<string,{p:Vec;parent:number;w:number}>();
   for(let j=0;j<nodes.length;j++)for(let a=0;a<6;a++){const p=add(nodes[j],DIRECTIONS[a]),k=key(p);if(occupied.has(k)||frontier.has(k))continue;
    const adjacent=DIRECTIONS.filter(d=>occupied.has(key(add(p,d)))).length;
    const dist=p.reduce((s,v,k)=>s+Math.abs(v)*axes[k],0);
-   frontier.set(k,{p,parent:j,w:Math.exp(Math.min(15,compact*(adjacent-1)))/(1+dist*.18)});
+   frontier.set(k,{p,parent:j,w:Math.exp(Math.min(15,compact*(adjacent-1)))/(1+dist*.18)*(target.active?Math.pow(field.affinity(p),1.5):1)});
   }
   let r=random()*[...frontier.values()].reduce((s,v)=>s+v.w,0),chosen=[...frontier.values()][0];for(const v of frontier.values()){r-=v.w;if(r<=0){chosen=v;break;}}
   occupied.set(key(chosen.p),i);nodes.push(chosen.p);tree.push([chosen.parent,i]);
@@ -28,18 +31,21 @@ function candidate(n:number,e:number,seed:number):Design|null{
  const edges=[...tree,...extra.slice(0,e-tree.length)];
  // Choose a grounded orientation with the best support heuristic.
  let oriented=nodes,metrics=score(nodes,edges);
- for(let a=0;a<3;a++)for(const sign of [-1,1]){const ps=nodes.map(p=>a===0?[p[1],p[0]*sign,p[2]]:a===1?[p[0],p[1]*sign,p[2]]:[p[0],p[2]*sign,p[1]]) as Vec[];const m=score(ps,edges);if(m.score>metrics.score){metrics=m;oriented=ps;}}
+ for(let a=0;a<(target.active?0:3);a++)for(const sign of [-1,1]){const ps=nodes.map(p=>a===0?[p[1],p[0]*sign,p[2]]:a===1?[p[0],p[1]*sign,p[2]]:[p[0],p[2]*sign,p[1]]) as Vec[];const m=score(ps,edges);if(m.score>metrics.score){metrics=m;oriented=ps;}}
  if(validate(oriented,edges,n,e).length)return null;
- return {seed,nodes:oriented,edges,fingerprint:'',...metrics};
+ return {seed,nodes:oriented,edges,fingerprint:'',shapeSimilarity:shapeScore(oriented,target),...metrics};
 }
-export function generate(n:number,e:number,seed:number,attempts=650):{designs:Design[];notice:string}{
+export function generate(n:number,e:number,seed:number,attempts=650,options:{freestandingOnly?:boolean;shapePrompt?:string}={}):{designs:Design[];notice:string}{
  const issue=feasibility(n,e);if(issue)throw Error(issue);
+ const target=parseShape(options.shapePrompt||'');
  const unique=new Map<string,Design>();
- for(let i=0;i<attempts;i++){const d=candidate(n,e,(seed+Math.imul(i+1,2654435761))>>>0);if(!d)continue;d.fingerprint=fingerprint(d.nodes,d.edges);if(!unique.has(d.fingerprint))unique.set(d.fingerprint,d);}
+ for(let i=0;i<attempts;i++){const d=candidate(n,e,(seed+Math.imul(i+1,2654435761))>>>0,target);if(!d||(options.freestandingOnly&&d.experimental))continue;d.fingerprint=fingerprint(d.nodes,d.edges);if(!unique.has(d.fingerprint))unique.set(d.fingerprint,d);}
  const pool=[...unique.values()].sort((a,b)=>b.score-a.score),selected:Design[]=[];
  while(selected.length<9&&pool.length){const wantExperimental=selected.length>=7;let best=0,bestScore=-Infinity;
-  pool.forEach((d,i)=>{const novelty=selected.length?Math.min(...selected.map(s=>Math.sqrt(d.descriptor.reduce((v,x,j)=>v+(x-s.descriptor[j])**2,0)))):0;const value=novelty*3+d.score*.25+(d.experimental===wantExperimental?3:0);if(value>bestScore){best=i;bestScore=value;}});
+  pool.forEach((d,i)=>{const novelty=selected.length?Math.min(...selected.map(s=>Math.sqrt(d.descriptor.reduce((v,x,j)=>v+(x-s.descriptor[j])**2,0)))):0;const value=novelty*2+d.score*.10+(d.shapeSimilarity||0)*12+(!d.experimental?Math.max(0,.65-(d.stabilityScore||0)):0)+(d.experimental===wantExperimental?3:0);if(value>bestScore){best=i;bestScore=value;}});
   selected.push(pool.splice(best,1)[0]);
  }
- return {designs:selected,notice:selected.length<9?`Found ${selected.length} distinct valid design${selected.length===1?'':'s'} within the search budget. ${selected.length===0?'Try fewer toothpicks or more connectors; no valid arrangement was found.':''}`:''};
+ return {designs:selected,notice:(target.unknown.length?`Unrecognized words: ${target.unknown.join(', ')}. Using recognized shape attributes. `:'')+(selected.length<9?`Found ${selected.length} distinct valid design${selected.length===1?'':'s'} within the search budget. ${selected.length===0?'No arrangement passed the selected criteria within the search budget. Try regenerating or turning off Freestanding only.':''}`:'')};
 }
+
+export function generateWithOptions(options:GenerationOptions,attempts=900){return generate(options.connectorCount,options.toothpickCount,options.seed??1,attempts,options);}

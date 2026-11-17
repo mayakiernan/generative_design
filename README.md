@@ -66,3 +66,15 @@ npm run compare -- --prompt "Make me a chair" --max-connectors 20 --freestanding
 A brief file holds the text sent to the models and the constraints the checker enforces: `maxConnectors`, `maxRods`, `gapMm` and `freestanding`. Every model gets the same system prompt (`systemPrompt()` in `src/engine/compare.ts`), the same effort (`--effort`, default `high`) and the same repair policy. If a design misses the brief, the checker's report goes back to the model for up to `--repairs` more turns (default 2). The table reports first-try and final results separately. Server-side refusal fallbacks are off, so a design is always credited to the model that produced it.
 
 The gap check looks along x and z for the widest band of ground with no contact at any depth and contacts on both sides. Its clear width is `D × 69.5 − 2 × 2.8` mm, where D is the lattice distance across the band. Results are saved to `results/<brief id>/<timestamp>.json`, including the prompt, every turn, token usage and estimated cost at list prices. `npm run check` typechecks the app and the runner.
+
+### Writing briefs on the page, and deploying
+
+The comparison page has a **Write a brief** tab. It sends the brief to `POST /api/compare`, which runs the same code as the CLI (`scripts/compare-handler.ts`). Locally, `npm run dev` serves that endpoint and saves runs to `results/`. On Vercel it's a function (`api/compare.ts`, 300 s limit). Runs made there can't be written to the repo, so the browser that made them keeps them.
+
+The deployed site is password-protected. `middleware.ts` asks for HTTP Basic auth on every page and on the API (any username, the password in `SITE_PASSWORD`), and the API function checks it again. With no `SITE_PASSWORD` set, the deployment refuses every request. Set both variables in the Vercel project, then redeploy:
+
+```sh
+vercel env add SITE_PASSWORD production
+vercel env add ANTHROPIC_API_KEY production
+vercel deploy --prod
+```

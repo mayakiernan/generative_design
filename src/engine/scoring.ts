@@ -1,4 +1,4 @@
-import {PHYSICAL,SPACING,type Vec,type Edge} from './physical';
+import {PHYSICAL,SPACING,type Vec,type Edge} from './physical.js';
 type P=[number,number];
 const cross=(a:P,b:P,c:P)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
 export function hull(points:P[]){const p=points.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);if(p.length<3)return p;const lo:P[]=[],hi:P[]=[];for(const v of p){while(lo.length>1&&cross(lo.at(-2)!,lo.at(-1)!,v)<=0)lo.pop();lo.push(v);}for(const v of p.slice().reverse()){while(hi.length>1&&cross(hi.at(-2)!,hi.at(-1)!,v)<=0)hi.pop();hi.push(v);}return [...lo.slice(0,-1),...hi.slice(0,-1)];}

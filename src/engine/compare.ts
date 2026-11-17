@@ -1,10 +1,10 @@
 // Shared, dependency-free pieces of the model comparison harness.
 // Used by scripts/compare.ts (Node, calls the API) and by the in-app viewer (browser, reads results).
 // Nothing here talks to the network or touches an API key.
-import {PHYSICAL,SPACING,type Vec,type Edge,type Design} from './physical';
-import {validate} from './validate';
-import {score} from './scoring';
-import {fingerprint} from './generate';
+import {PHYSICAL,SPACING,type Vec,type Edge,type Design} from './physical.js';
+import {validate} from './validate.js';
+import {score} from './scoring.js';
+import {fingerprint} from './generate.js';
 
 export interface BriefConstraints {
  /** Hard upper limit on connectors. */

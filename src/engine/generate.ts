@@ -1,7 +1,7 @@
-import {parseShape,targetField,shapeScore,type ShapeTarget} from './shape';
+import {parseShape,targetField,shapeScore,type ShapeTarget} from './shape.js';
 export interface GenerationOptions {toothpickCount:number;connectorCount:number;freestandingOnly:boolean;shapePrompt:string;seed?:number;}
-import {DIRECTIONS,add,key,type Vec,type Edge,type Design} from './physical';
-import {score} from './scoring';import {feasibility,validate} from './validate';
+import {DIRECTIONS,add,key,type Vec,type Edge,type Design} from './physical.js';
+import {score} from './scoring.js';import {feasibility,validate} from './validate.js';
 export function rng(seed:number){return ()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 // Translation / rotation / reflection invariant graph signature, including actual occupied rods.
 export function fingerprint(nodes:Vec[],edges:Edge[]){

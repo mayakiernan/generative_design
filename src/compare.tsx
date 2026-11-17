@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Viewer} from './components/Viewer';
 import {BriefForm} from './components/BriefForm';
+import {SiteTabs} from './components/SiteTabs';
 import {ModelCard,STATUS,designsFor,runs as savedRuns,when} from './components/ModelRuns';
 import type {BriefConstraints,RunFile} from './engine/compare';
 import './style.css';
@@ -44,7 +45,7 @@ function ComparePage(){
   <button role="tab" aria-selected={!writing} onClick={()=>setWriting(false)} disabled={!run}>SAVED RUNS</button>
   <button role="tab" aria-selected={writing} onClick={()=>setWriting(true)}>WRITE A BRIEF +</button></div>;
 
- return <main className="compare-page"><section className="workspace"><aside>
+ return <main className="compare-page"><SiteTabs current="compare"/><section className="workspace"><aside>
   <a className="wordmark" href="../">Possible<br/>Pieces</a>
   <div className="compare-brief">
    <p className="mono eyebrow">MODEL COMPARISON</p>

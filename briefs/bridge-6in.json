@@ -1,0 +1,10 @@
+{
+  "id": "bridge-6in",
+  "title": "Bridge over a 6 inch gap",
+  "prompt": "Make me a bridge that spans a 6 inch gap using no more than 25 connectors.",
+  "constraints": {
+    "maxConnectors": 25,
+    "gapMm": 152.4,
+    "freestanding": true
+  }
+}

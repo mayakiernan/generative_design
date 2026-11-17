@@ -1,0 +1,1445 @@
+{
+ "version": 1,
+ "brief": {
+  "id": "bridge-6in",
+  "prompt": "Make me a bridge that spans a 6 inch gap using no more than 25 connectors.",
+  "title": "Bridge over a 6 inch gap",
+  "constraints": {
+   "maxConnectors": 25,
+   "gapMm": 152.4,
+   "freestanding": true
+  }
+ },
+ "createdAt": "2026-11-17T17:09:43.381Z",
+ "settings": {
+  "effort": "high",
+  "repairs": 2,
+  "maxTokens": 64000
+ },
+ "systemPrompt": "You design physical structures built from a construction kit. A program checks your design, so it must follow the kit's geometry exactly.\n\nThe kit\n- Rods: identical straight toothpicks, 63.5 mm long.\n- Connectors: identical hubs with six sockets pointing along +x, -x, +y, -y, +z and -z. Every connector keeps the same orientation; none can be rotated.\n- A rod pushed into two sockets holds the two connector centres exactly 69.5 mm apart. So every connector sits on a point of a cubic lattice with 69.5 mm spacing, and every rod joins two connectors one lattice step apart along a single axis.\n\nCoordinates\n- Connector positions are integer lattice coordinates (x, y, z). One unit is 69.5 mm.\n- y is vertical. The connectors with the lowest y rest on the ground. Each touches it with its downward socket: a circular contact 2.8 mm in radius around the connector's centre. Nothing else touches the ground.\n\nRules the checker enforces\n- No two connectors share a position.\n- Each rod joins two connectors whose coordinates differ by exactly 1 along exactly one axis, and at most one rod joins any pair.\n- The assembly is one connected piece.\n- Every connector and rod you list counts as used.\n\nHow the checker judges the result\n- Freestanding: the centre of mass (each connector weighs 1, each rod 0.35) must project inside the convex hull of the ground contacts, with some clearance. Tall narrow forms, long cantilevers and connectors hanging from a single rod are penalised.\n- Gaps: when a brief asks to span a gap, the checker looks along x and along z for a band of ground that no contact touches at any depth, with contacts on both sides. Its clear width is D * 69.5 - 2 * 2.8 mm, where D is the lattice distance between the contacts on either side of the band. The structure rests on the ground on both sides.\n- Limits on connectors or rods in the brief are hard limits.\n\nAnswer with the design in the requested JSON format: a short name, a brief rationale explaining how the design meets the brief, the connectors (each with an integer id and x, y, z) and the rods (each naming the ids of the two connectors it joins).",
+ "results": [
+  {
+   "key": "sonnet",
+   "label": "Sonnet 5.5",
+   "model": "claude-sonnet-5-5",
+   "servedBy": "claude-sonnet-5-5",
+   "status": "pass",
+   "attempts": [
+    {
+     "turn": 1,
+     "stopReason": "end_turn",
+     "design": {
+      "name": "Low Lattice Footbridge",
+      "rationale": "The gap is 6 in (152.4 mm). Ground contacts sit at x=0 and x=3, so D=3 and the clear width is 3*69.5-5.6 = 202.9 mm, which clears the gap. Nothing touches the ground at x=1 or x=2. Four legs (two per side, z=0 and z=1) are the only ground contacts. A 4x2 deck at y=1 joins them, and a raised 2x2 top layer at y=2 stiffens the middle. The design is symmetric, so the centre of mass lies in the middle of the footprint. It uses 16 connectors, under the 25 limit.",
+      "connectors": [
+       {
+        "id": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 2,
+        "x": 0,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 3,
+        "x": 3,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 4,
+        "x": 3,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 5,
+        "x": 0,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 6,
+        "x": 1,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 7,
+        "x": 2,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 8,
+        "x": 3,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 9,
+        "x": 0,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 10,
+        "x": 1,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 11,
+        "x": 2,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 12,
+        "x": 3,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 13,
+        "x": 1,
+        "y": 2,
+        "z": 0
+       },
+       {
+        "id": 14,
+        "x": 2,
+        "y": 2,
+        "z": 0
+       },
+       {
+        "id": 15,
+        "x": 1,
+        "y": 2,
+        "z": 1
+       },
+       {
+        "id": 16,
+        "x": 2,
+        "y": 2,
+        "z": 1
+       }
+      ],
+      "rods": [
+       {
+        "from": 1,
+        "to": 5
+       },
+       {
+        "from": 2,
+        "to": 9
+       },
+       {
+        "from": 3,
+        "to": 8
+       },
+       {
+        "from": 4,
+        "to": 12
+       },
+       {
+        "from": 5,
+        "to": 6
+       },
+       {
+        "from": 6,
+        "to": 7
+       },
+       {
+        "from": 7,
+        "to": 8
+       },
+       {
+        "from": 9,
+        "to": 10
+       },
+       {
+        "from": 10,
+        "to": 11
+       },
+       {
+        "from": 11,
+        "to": 12
+       },
+       {
+        "from": 5,
+        "to": 9
+       },
+       {
+        "from": 6,
+        "to": 10
+       },
+       {
+        "from": 7,
+        "to": 11
+       },
+       {
+        "from": 8,
+        "to": 12
+       },
+       {
+        "from": 6,
+        "to": 13
+       },
+       {
+        "from": 7,
+        "to": 14
+       },
+       {
+        "from": 10,
+        "to": 15
+       },
+       {
+        "from": 11,
+        "to": 16
+       },
+       {
+        "from": 13,
+        "to": 14
+       },
+       {
+        "from": 15,
+        "to": 16
+       },
+       {
+        "from": 13,
+        "to": 15
+       },
+       {
+        "from": 14,
+        "to": 16
+       }
+      ]
+     },
+     "evaluation": {
+      "passes": true,
+      "valid": true,
+      "errors": [],
+      "checks": [
+       {
+        "label": "Valid geometry",
+        "pass": true,
+        "detail": "On the lattice and connected"
+       },
+       {
+        "label": "Connectors",
+        "pass": true,
+        "detail": "16 of 25 max"
+       },
+       {
+        "label": "Spans gap",
+        "pass": true,
+        "detail": "202.9 mm clear, 152.4 mm needed"
+       },
+       {
+        "label": "Freestanding",
+        "pass": true,
+        "detail": "Estimated stable, score 0.77"
+       }
+      ],
+      "connectors": 16,
+      "rods": 22,
+      "stable": true,
+      "stabilityScore": 0.7679005820329458,
+      "groundContacts": 4,
+      "span": {
+       "axis": "x",
+       "clearMm": 202.9,
+       "between": [
+        0,
+        3
+       ]
+      },
+      "sizeMm": [
+       208.5,
+       139,
+       69.5
+      ]
+     },
+     "usage": {
+      "input": 1459,
+      "output": 1734,
+      "thinking": 913
+     },
+     "ms": 13514
+    }
+   ],
+   "final": {
+    "name": "Low Lattice Footbridge",
+    "rationale": "The gap is 6 in (152.4 mm). Ground contacts sit at x=0 and x=3, so D=3 and the clear width is 3*69.5-5.6 = 202.9 mm, which clears the gap. Nothing touches the ground at x=1 or x=2. Four legs (two per side, z=0 and z=1) are the only ground contacts. A 4x2 deck at y=1 joins them, and a raised 2x2 top layer at y=2 stiffens the middle. The design is symmetric, so the centre of mass lies in the middle of the footprint. It uses 16 connectors, under the 25 limit.",
+    "connectors": [
+     {
+      "id": 1,
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 2,
+      "x": 0,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 3,
+      "x": 3,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 4,
+      "x": 3,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 5,
+      "x": 0,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 6,
+      "x": 1,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 7,
+      "x": 2,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 8,
+      "x": 3,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 9,
+      "x": 0,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 10,
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 11,
+      "x": 2,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 12,
+      "x": 3,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 13,
+      "x": 1,
+      "y": 2,
+      "z": 0
+     },
+     {
+      "id": 14,
+      "x": 2,
+      "y": 2,
+      "z": 0
+     },
+     {
+      "id": 15,
+      "x": 1,
+      "y": 2,
+      "z": 1
+     },
+     {
+      "id": 16,
+      "x": 2,
+      "y": 2,
+      "z": 1
+     }
+    ],
+    "rods": [
+     {
+      "from": 1,
+      "to": 5
+     },
+     {
+      "from": 2,
+      "to": 9
+     },
+     {
+      "from": 3,
+      "to": 8
+     },
+     {
+      "from": 4,
+      "to": 12
+     },
+     {
+      "from": 5,
+      "to": 6
+     },
+     {
+      "from": 6,
+      "to": 7
+     },
+     {
+      "from": 7,
+      "to": 8
+     },
+     {
+      "from": 9,
+      "to": 10
+     },
+     {
+      "from": 10,
+      "to": 11
+     },
+     {
+      "from": 11,
+      "to": 12
+     },
+     {
+      "from": 5,
+      "to": 9
+     },
+     {
+      "from": 6,
+      "to": 10
+     },
+     {
+      "from": 7,
+      "to": 11
+     },
+     {
+      "from": 8,
+      "to": 12
+     },
+     {
+      "from": 6,
+      "to": 13
+     },
+     {
+      "from": 7,
+      "to": 14
+     },
+     {
+      "from": 10,
+      "to": 15
+     },
+     {
+      "from": 11,
+      "to": 16
+     },
+     {
+      "from": 13,
+      "to": 14
+     },
+     {
+      "from": 15,
+      "to": 16
+     },
+     {
+      "from": 13,
+      "to": 15
+     },
+     {
+      "from": 14,
+      "to": 16
+     }
+    ]
+   },
+   "evaluation": {
+    "passes": true,
+    "valid": true,
+    "errors": [],
+    "checks": [
+     {
+      "label": "Valid geometry",
+      "pass": true,
+      "detail": "On the lattice and connected"
+     },
+     {
+      "label": "Connectors",
+      "pass": true,
+      "detail": "16 of 25 max"
+     },
+     {
+      "label": "Spans gap",
+      "pass": true,
+      "detail": "202.9 mm clear, 152.4 mm needed"
+     },
+     {
+      "label": "Freestanding",
+      "pass": true,
+      "detail": "Estimated stable, score 0.77"
+     }
+    ],
+    "connectors": 16,
+    "rods": 22,
+    "stable": true,
+    "stabilityScore": 0.7679005820329458,
+    "groundContacts": 4,
+    "span": {
+     "axis": "x",
+     "clearMm": 202.9,
+     "between": [
+      0,
+      3
+     ]
+    },
+    "sizeMm": [
+     208.5,
+     139,
+     69.5
+    ]
+   },
+   "firstTryPass": true,
+   "usage": {
+    "input": 1459,
+    "output": 1734,
+    "thinking": 913
+   },
+   "costUsd": 0.020258,
+   "ms": 13523
+  },
+  {
+   "key": "opus",
+   "label": "Opus 5.5",
+   "model": "claude-opus-5-5",
+   "servedBy": "claude-opus-5-5",
+   "status": "pass",
+   "attempts": [
+    {
+     "turn": 1,
+     "stopReason": "end_turn",
+     "design": {
+      "name": "Twin-Rail Truss Span",
+      "rationale": "6 inches is 152.4 mm. With ground contacts at x=0 and x=3, the gap distance is D=3, so the clear width is 3*69.5 - 2*2.8 = 202.9 mm, which covers the gap. Each bank has two feet (z=0 and z=1), and nothing touches the ground at x=1 or x=2 at any depth. Above the feet, a two-rail deck at y=1 runs from x=0 to x=3 with cross-rods at every station. A raised top chord at y=2 over the middle stations stiffens the span. The design is symmetric, so the centre of mass sits at x=1.5, z=0.5, in the middle of the rectangle formed by the four feet. It uses 16 connectors, within the limit of 25.",
+      "connectors": [
+       {
+        "id": 1,
+        "x": 0,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 2,
+        "x": 0,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 3,
+        "x": 3,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 4,
+        "x": 3,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 5,
+        "x": 0,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 6,
+        "x": 1,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 7,
+        "x": 2,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 8,
+        "x": 3,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 9,
+        "x": 0,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 10,
+        "x": 1,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 11,
+        "x": 2,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 12,
+        "x": 3,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 13,
+        "x": 1,
+        "y": 2,
+        "z": 0
+       },
+       {
+        "id": 14,
+        "x": 2,
+        "y": 2,
+        "z": 0
+       },
+       {
+        "id": 15,
+        "x": 1,
+        "y": 2,
+        "z": 1
+       },
+       {
+        "id": 16,
+        "x": 2,
+        "y": 2,
+        "z": 1
+       }
+      ],
+      "rods": [
+       {
+        "from": 1,
+        "to": 5
+       },
+       {
+        "from": 2,
+        "to": 9
+       },
+       {
+        "from": 3,
+        "to": 8
+       },
+       {
+        "from": 4,
+        "to": 12
+       },
+       {
+        "from": 1,
+        "to": 2
+       },
+       {
+        "from": 3,
+        "to": 4
+       },
+       {
+        "from": 5,
+        "to": 6
+       },
+       {
+        "from": 6,
+        "to": 7
+       },
+       {
+        "from": 7,
+        "to": 8
+       },
+       {
+        "from": 9,
+        "to": 10
+       },
+       {
+        "from": 10,
+        "to": 11
+       },
+       {
+        "from": 11,
+        "to": 12
+       },
+       {
+        "from": 5,
+        "to": 9
+       },
+       {
+        "from": 6,
+        "to": 10
+       },
+       {
+        "from": 7,
+        "to": 11
+       },
+       {
+        "from": 8,
+        "to": 12
+       },
+       {
+        "from": 6,
+        "to": 13
+       },
+       {
+        "from": 7,
+        "to": 14
+       },
+       {
+        "from": 10,
+        "to": 15
+       },
+       {
+        "from": 11,
+        "to": 16
+       },
+       {
+        "from": 13,
+        "to": 14
+       },
+       {
+        "from": 15,
+        "to": 16
+       },
+       {
+        "from": 13,
+        "to": 15
+       },
+       {
+        "from": 14,
+        "to": 16
+       }
+      ]
+     },
+     "evaluation": {
+      "passes": true,
+      "valid": true,
+      "errors": [],
+      "checks": [
+       {
+        "label": "Valid geometry",
+        "pass": true,
+        "detail": "On the lattice and connected"
+       },
+       {
+        "label": "Connectors",
+        "pass": true,
+        "detail": "16 of 25 max"
+       },
+       {
+        "label": "Spans gap",
+        "pass": true,
+        "detail": "202.9 mm clear, 152.4 mm needed"
+       },
+       {
+        "label": "Freestanding",
+        "pass": true,
+        "detail": "Estimated stable, score 0.79"
+       }
+      ],
+      "connectors": 16,
+      "rods": 24,
+      "stable": true,
+      "stabilityScore": 0.7854005820329457,
+      "groundContacts": 4,
+      "span": {
+       "axis": "x",
+       "clearMm": 202.9,
+       "between": [
+        0,
+        3
+       ]
+      },
+      "sizeMm": [
+       208.5,
+       139,
+       69.5
+      ]
+     },
+     "usage": {
+      "input": 1459,
+      "output": 1682,
+      "thinking": 795
+     },
+     "ms": 16062
+    }
+   ],
+   "final": {
+    "name": "Twin-Rail Truss Span",
+    "rationale": "6 inches is 152.4 mm. With ground contacts at x=0 and x=3, the gap distance is D=3, so the clear width is 3*69.5 - 2*2.8 = 202.9 mm, which covers the gap. Each bank has two feet (z=0 and z=1), and nothing touches the ground at x=1 or x=2 at any depth. Above the feet, a two-rail deck at y=1 runs from x=0 to x=3 with cross-rods at every station. A raised top chord at y=2 over the middle stations stiffens the span. The design is symmetric, so the centre of mass sits at x=1.5, z=0.5, in the middle of the rectangle formed by the four feet. It uses 16 connectors, within the limit of 25.",
+    "connectors": [
+     {
+      "id": 1,
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 2,
+      "x": 0,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 3,
+      "x": 3,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 4,
+      "x": 3,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 5,
+      "x": 0,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 6,
+      "x": 1,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 7,
+      "x": 2,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 8,
+      "x": 3,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 9,
+      "x": 0,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 10,
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 11,
+      "x": 2,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 12,
+      "x": 3,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 13,
+      "x": 1,
+      "y": 2,
+      "z": 0
+     },
+     {
+      "id": 14,
+      "x": 2,
+      "y": 2,
+      "z": 0
+     },
+     {
+      "id": 15,
+      "x": 1,
+      "y": 2,
+      "z": 1
+     },
+     {
+      "id": 16,
+      "x": 2,
+      "y": 2,
+      "z": 1
+     }
+    ],
+    "rods": [
+     {
+      "from": 1,
+      "to": 5
+     },
+     {
+      "from": 2,
+      "to": 9
+     },
+     {
+      "from": 3,
+      "to": 8
+     },
+     {
+      "from": 4,
+      "to": 12
+     },
+     {
+      "from": 1,
+      "to": 2
+     },
+     {
+      "from": 3,
+      "to": 4
+     },
+     {
+      "from": 5,
+      "to": 6
+     },
+     {
+      "from": 6,
+      "to": 7
+     },
+     {
+      "from": 7,
+      "to": 8
+     },
+     {
+      "from": 9,
+      "to": 10
+     },
+     {
+      "from": 10,
+      "to": 11
+     },
+     {
+      "from": 11,
+      "to": 12
+     },
+     {
+      "from": 5,
+      "to": 9
+     },
+     {
+      "from": 6,
+      "to": 10
+     },
+     {
+      "from": 7,
+      "to": 11
+     },
+     {
+      "from": 8,
+      "to": 12
+     },
+     {
+      "from": 6,
+      "to": 13
+     },
+     {
+      "from": 7,
+      "to": 14
+     },
+     {
+      "from": 10,
+      "to": 15
+     },
+     {
+      "from": 11,
+      "to": 16
+     },
+     {
+      "from": 13,
+      "to": 14
+     },
+     {
+      "from": 15,
+      "to": 16
+     },
+     {
+      "from": 13,
+      "to": 15
+     },
+     {
+      "from": 14,
+      "to": 16
+     }
+    ]
+   },
+   "evaluation": {
+    "passes": true,
+    "valid": true,
+    "errors": [],
+    "checks": [
+     {
+      "label": "Valid geometry",
+      "pass": true,
+      "detail": "On the lattice and connected"
+     },
+     {
+      "label": "Connectors",
+      "pass": true,
+      "detail": "16 of 25 max"
+     },
+     {
+      "label": "Spans gap",
+      "pass": true,
+      "detail": "202.9 mm clear, 152.4 mm needed"
+     },
+     {
+      "label": "Freestanding",
+      "pass": true,
+      "detail": "Estimated stable, score 0.79"
+     }
+    ],
+    "connectors": 16,
+    "rods": 24,
+    "stable": true,
+    "stabilityScore": 0.7854005820329457,
+    "groundContacts": 4,
+    "span": {
+     "axis": "x",
+     "clearMm": 202.9,
+     "between": [
+      0,
+      3
+     ]
+    },
+    "sizeMm": [
+     208.5,
+     139,
+     69.5
+    ]
+   },
+   "firstTryPass": true,
+   "usage": {
+    "input": 1459,
+    "output": 1682,
+    "thinking": 795
+   },
+   "costUsd": 0.039476,
+   "ms": 16063
+  },
+  {
+   "key": "fable",
+   "label": "Fable 5.2",
+   "model": "claude-fable-5-2",
+   "servedBy": "claude-fable-5-2",
+   "status": "pass",
+   "attempts": [
+    {
+     "turn": 1,
+     "stopReason": "end_turn",
+     "design": {
+      "name": "Three-Bay Portal Bridge",
+      "rationale": "A 6 inch gap is 152.4 mm. Two lattice steps between supports would leave only 133.4 mm clear, so the abutments sit three steps apart at x=0 and x=3, giving 3*69.5 - 5.6 = 202.9 mm of clear ground with no contacts in between. Each abutment is a pair of ground connectors (z=0 and z=1) tied together by a rod, with a vertical rod up to the deck. The deck at y=1 is a two-rail ladder running x=0..3 with a cross rod at every station, so every connector has at least two rods. The centre of mass sits at the middle of the 3x1 footprint rectangle, the structure is only one level tall, and it uses 12 connectors (limit 25) and 16 rods.",
+      "connectors": [
+       {
+        "id": 0,
+        "x": 0,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 1,
+        "x": 0,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 2,
+        "x": 3,
+        "y": 0,
+        "z": 0
+       },
+       {
+        "id": 3,
+        "x": 3,
+        "y": 0,
+        "z": 1
+       },
+       {
+        "id": 4,
+        "x": 0,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 5,
+        "x": 1,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 6,
+        "x": 2,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 7,
+        "x": 3,
+        "y": 1,
+        "z": 0
+       },
+       {
+        "id": 8,
+        "x": 0,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 9,
+        "x": 1,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 10,
+        "x": 2,
+        "y": 1,
+        "z": 1
+       },
+       {
+        "id": 11,
+        "x": 3,
+        "y": 1,
+        "z": 1
+       }
+      ],
+      "rods": [
+       {
+        "from": 0,
+        "to": 1
+       },
+       {
+        "from": 2,
+        "to": 3
+       },
+       {
+        "from": 0,
+        "to": 4
+       },
+       {
+        "from": 1,
+        "to": 8
+       },
+       {
+        "from": 2,
+        "to": 7
+       },
+       {
+        "from": 3,
+        "to": 11
+       },
+       {
+        "from": 4,
+        "to": 5
+       },
+       {
+        "from": 5,
+        "to": 6
+       },
+       {
+        "from": 6,
+        "to": 7
+       },
+       {
+        "from": 8,
+        "to": 9
+       },
+       {
+        "from": 9,
+        "to": 10
+       },
+       {
+        "from": 10,
+        "to": 11
+       },
+       {
+        "from": 4,
+        "to": 8
+       },
+       {
+        "from": 5,
+        "to": 9
+       },
+       {
+        "from": 6,
+        "to": 10
+       },
+       {
+        "from": 7,
+        "to": 11
+       }
+      ]
+     },
+     "evaluation": {
+      "passes": true,
+      "valid": true,
+      "errors": [],
+      "checks": [
+       {
+        "label": "Valid geometry",
+        "pass": true,
+        "detail": "On the lattice and connected"
+       },
+       {
+        "label": "Connectors",
+        "pass": true,
+        "detail": "12 of 25 max"
+       },
+       {
+        "label": "Spans gap",
+        "pass": true,
+        "detail": "202.9 mm clear, 152.4 mm needed"
+       },
+       {
+        "label": "Freestanding",
+        "pass": true,
+        "detail": "Estimated stable, score 0.79"
+       }
+      ],
+      "connectors": 12,
+      "rods": 16,
+      "stable": true,
+      "stabilityScore": 0.7936243688373116,
+      "groundContacts": 4,
+      "span": {
+       "axis": "x",
+       "clearMm": 202.9,
+       "between": [
+        0,
+        3
+       ]
+      },
+      "sizeMm": [
+       208.5,
+       69.5,
+       69.5
+      ]
+     },
+     "usage": {
+      "input": 1459,
+      "output": 1462,
+      "thinking": 744
+     },
+     "ms": 14514
+    }
+   ],
+   "final": {
+    "name": "Three-Bay Portal Bridge",
+    "rationale": "A 6 inch gap is 152.4 mm. Two lattice steps between supports would leave only 133.4 mm clear, so the abutments sit three steps apart at x=0 and x=3, giving 3*69.5 - 5.6 = 202.9 mm of clear ground with no contacts in between. Each abutment is a pair of ground connectors (z=0 and z=1) tied together by a rod, with a vertical rod up to the deck. The deck at y=1 is a two-rail ladder running x=0..3 with a cross rod at every station, so every connector has at least two rods. The centre of mass sits at the middle of the 3x1 footprint rectangle, the structure is only one level tall, and it uses 12 connectors (limit 25) and 16 rods.",
+    "connectors": [
+     {
+      "id": 0,
+      "x": 0,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 1,
+      "x": 0,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 2,
+      "x": 3,
+      "y": 0,
+      "z": 0
+     },
+     {
+      "id": 3,
+      "x": 3,
+      "y": 0,
+      "z": 1
+     },
+     {
+      "id": 4,
+      "x": 0,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 5,
+      "x": 1,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 6,
+      "x": 2,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 7,
+      "x": 3,
+      "y": 1,
+      "z": 0
+     },
+     {
+      "id": 8,
+      "x": 0,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 9,
+      "x": 1,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 10,
+      "x": 2,
+      "y": 1,
+      "z": 1
+     },
+     {
+      "id": 11,
+      "x": 3,
+      "y": 1,
+      "z": 1
+     }
+    ],
+    "rods": [
+     {
+      "from": 0,
+      "to": 1
+     },
+     {
+      "from": 2,
+      "to": 3
+     },
+     {
+      "from": 0,
+      "to": 4
+     },
+     {
+      "from": 1,
+      "to": 8
+     },
+     {
+      "from": 2,
+      "to": 7
+     },
+     {
+      "from": 3,
+      "to": 11
+     },
+     {
+      "from": 4,
+      "to": 5
+     },
+     {
+      "from": 5,
+      "to": 6
+     },
+     {
+      "from": 6,
+      "to": 7
+     },
+     {
+      "from": 8,
+      "to": 9
+     },
+     {
+      "from": 9,
+      "to": 10
+     },
+     {
+      "from": 10,
+      "to": 11
+     },
+     {
+      "from": 4,
+      "to": 8
+     },
+     {
+      "from": 5,
+      "to": 9
+     },
+     {
+      "from": 6,
+      "to": 10
+     },
+     {
+      "from": 7,
+      "to": 11
+     }
+    ]
+   },
+   "evaluation": {
+    "passes": true,
+    "valid": true,
+    "errors": [],
+    "checks": [
+     {
+      "label": "Valid geometry",
+      "pass": true,
+      "detail": "On the lattice and connected"
+     },
+     {
+      "label": "Connectors",
+      "pass": true,
+      "detail": "12 of 25 max"
+     },
+     {
+      "label": "Spans gap",
+      "pass": true,
+      "detail": "202.9 mm clear, 152.4 mm needed"
+     },
+     {
+      "label": "Freestanding",
+      "pass": true,
+      "detail": "Estimated stable, score 0.79"
+     }
+    ],
+    "connectors": 12,
+    "rods": 16,
+    "stable": true,
+    "stabilityScore": 0.7936243688373116,
+    "groundContacts": 4,
+    "span": {
+     "axis": "x",
+     "clearMm": 202.9,
+     "between": [
+      0,
+      3
+     ]
+    },
+    "sizeMm": [
+     208.5,
+     69.5,
+     69.5
+    ]
+   },
+   "firstTryPass": true,
+   "usage": {
+    "input": 1459,
+    "output": 1462,
+    "thinking": 744
+   },
+   "costUsd": 0.070152,
+   "ms": 14516
+  }
+ ]
+}

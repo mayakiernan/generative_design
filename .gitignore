@@ -1,3 +1,8 @@
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Local secrets (API keys)
+.env
+.env.*
+!.env.example

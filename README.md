@@ -46,3 +46,23 @@ Freestanding Only defaults on and filters every gallery candidate using the same
 The assessed orientation is retained for shape objectives; unprompted candidates explore axial resting orientations. The renderer places the floor at the lowest downward socket tip. Ground support uses an eight-point approximation to each downward socket's circular contact rim. Equal connector masses and rods weighing 0.35 connector units yield the projected center of mass. Signed distance to the support hull must exceed the configurable `STABILITY.margin`; a continuous score accounts for clearance, footprint, height, cantilever, loops and leaf joints. Thresholds live in `engine/scoring.ts`. Narrow supports and cantilevers can pass, but friction, elastic buckling, joint rotation and stiffness are only approximated by geometric risk penalties. These estimates are not engineering verification.
 
 `GenerationOptions` carries both counts, freestandingOnly, shapePrompt and seed through the worker. Regenerate reads the same controls and changes only the seed. Each design/export carries shapeSimilarity, stabilityScore and its experimental classification. The bounded seeded attempt count makes identical options reproducible.
+
+## Model comparison
+
+Run the same design brief against Claude Sonnet 5.5, Opus 5.5 and Fable 5.2, then check every answer with this project's own geometry and stability code.
+
+1. Put your Anthropic API key in `.env.local` (gitignored) as `ANTHROPIC_API_KEY=...`, or export it in your shell.
+2. Run a brief:
+
+```sh
+npm run compare -- briefs/bridge-6in.json
+npm run compare -- briefs/bridge-6in.json --dry-run          # print prompts and a cost estimate, call nothing
+npm run compare -- briefs/bridge-6in.json --models opus,fable --runs 3
+npm run compare -- --prompt "Make me a chair" --max-connectors 20 --freestanding
+```
+
+3. Open the comparison page at `/compare/` (linked as **Model comparison** in the generator footer). It shows the brief, a scoreboard and a 3D viewer for each model's design. Pick a saved run from the menu, and click a model to watch its build.
+
+A brief file holds the text sent to the models and the constraints the checker enforces: `maxConnectors`, `maxRods`, `gapMm` and `freestanding`. Every model gets the same system prompt (`systemPrompt()` in `src/engine/compare.ts`), the same effort (`--effort`, default `high`) and the same repair policy. If a design misses the brief, the checker's report goes back to the model for up to `--repairs` more turns (default 2). The table reports first-try and final results separately. Server-side refusal fallbacks are off, so a design is always credited to the model that produced it.
+
+The gap check looks along x and z for the widest band of ground with no contact at any depth and contacts on both sides. Its clear width is `D × 69.5 − 2 × 2.8` mm, where D is the lattice distance across the band. Results are saved to `results/<brief id>/<timestamp>.json`, including the prompt, every turn, token usage and estimated cost at list prices. `npm run check` typechecks the app and the runner.

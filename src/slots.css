@@ -181,3 +181,15 @@ button.primary{border:1px solid #e95319;background:#e95319;color:#fff;border-rad
 .kit-cover .piece-icon path:first-of-type{stroke:#b9ae96;stroke-width:3}
 .legs{display:grid;gap:6px}
 .legs .seg button{padding:8px 11px}
+
+/* Kit sheet tab */
+.ks .kg-controls{margin:14px 0}
+.ks .kg-controls select{border:1px solid #d7d6d0;border-radius:4px;padding:7px 8px;font-size:13px;background:#fff}
+.ks-mix{align-items:center}.ks-mix .label{margin:0 4px 0 0;align-self:center}
+.ks-mix button{border:1px solid #e4e3dd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12px;color:#55554f;cursor:pointer}
+.ks-mix button:disabled{cursor:default;color:#9a998f}
+.ks-warn{margin:6px 0 14px;padding:10px 14px 10px 28px;background:#fdf6e9;border-radius:6px;color:#8a5a0c;font-size:13px}
+.ks-out{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin:8px 0 12px}
+.ks-counts{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;font-size:13px;color:#55554f}.ks-counts b{font-weight:600;color:#242421}
+.ks-preview{max-height:none;margin-bottom:8px}.ks-preview .ks-stock{fill:#f6efe1;stroke:#d9cdb3;stroke-width:1;vector-effect:non-scaling-stroke}
+.ks-preview text{fill:#2f4fd0;font-family:Helvetica,Arial,sans-serif}

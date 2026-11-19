@@ -50,19 +50,25 @@ export const CUT_STROKE_MM = (0.072 * 25.4) / 72;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[ch]!);
 
-export function cutSheetSVG(d: Design, marks: Mark[] = nameMarks(d)): string {
+/** Engraved text placed on a sheet: centre point (mm, y down), height, text. */
+export interface SheetLabel {at: V2; text: string; size: number}
+
+/** A design's pieces packed on a sheet, with their engraving in sheet coordinates. */
+function designSheet(d: Design, marks: Mark[]): {loops: V2[][]; labels: SheetLabel[]; width: number; height: number} {
   const {items, width, height} = packSheet(d);
   const byPanel = new Map(items.map(it => [it.id, it]));
-  const cuts = items.map(it => `<path d="${loopPath(it.loops, it.x, it.y)}" fill="none" stroke="#ff0000" stroke-width="${CUT_STROKE_MM.toFixed(4)}"/>`).join('\n');
-  const text = marks.map(m => {
-    const it = byPanel.get(m.panel);
-    if (!it) return '';
-    const [x, y] = onSheet(it, m.at);
-    return `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" font-family="Helvetica, Arial, sans-serif" font-size="${m.size.toFixed(1)}" fill="#0000ff" text-anchor="middle" dominant-baseline="central">${esc(m.text)}</text>`;
-  }).join('\n');
+  const loops = items.flatMap(it => it.loops.map(l => l.map(q => [q[0] + it.x, q[1] + it.y] as V2)));
+  const labels = marks.flatMap(m => { const it = byPanel.get(m.panel); return it ? [{at: onSheet(it, m.at), text: m.text, size: m.size}] : []; });
+  return {loops, labels, width, height};
+}
+
+/** An SVG cut file: closed loops cut in red at the lab's 0.072 pt, labels engraved in blue. 1 unit = 1 mm, y down. */
+export function sheetSVG(loops: V2[][], labels: SheetLabel[], width: number, height: number, comment: string): string {
+  const cuts = loops.map(l => `<path d="${loopPath([l])}" fill="none" stroke="#ff0000" stroke-width="${CUT_STROKE_MM.toFixed(4)}"/>`).join('\n');
+  const text = labels.map(l => `<text x="${l.at[0].toFixed(2)}" y="${l.at[1].toFixed(2)}" font-family="Helvetica, Arial, sans-serif" font-size="${l.size.toFixed(1)}" fill="#0000ff" text-anchor="middle" dominant-baseline="central">${esc(l.text)}</text>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width.toFixed(1)}mm" height="${height.toFixed(1)}mm" viewBox="0 0 ${width.toFixed(1)} ${height.toFixed(1)}">
-<!-- ${esc(d.title)}: ${d.panels.length} pieces, ${d.thickness} mm sheet, slits ${(d.thickness + d.clearance).toFixed(2)} mm wide. Red = cut, blue = engrave. -->
+<!-- ${esc(comment)} Red = cut, blue = engrave. -->
 <g id="engrave">
 ${text}
 </g>
@@ -73,6 +79,11 @@ ${cuts}
 `;
 }
 
+export function cutSheetSVG(d: Design, marks: Mark[] = nameMarks(d)): string {
+  const s = designSheet(d, marks);
+  return sheetSVG(s.loops, s.labels, s.width, s.height, `${d.title}: ${d.panels.length} pieces, ${d.thickness} mm sheet, slits ${(d.thickness + d.clearance).toFixed(2)} mm wide.`);
+}
+
 /**
  * DXF R2000 (AC1015) in millimetres: closed LWPOLYLINEs on layer CUT (red), TEXT on layer ENGRAVE (blue),
  * every entity and both layers at lineweight 0 (code 370, hundredths of a millimetre). R12 has no lineweights, so
@@ -81,8 +92,12 @@ ${cuts}
  * Every object has a handle (5) and its owner's handle (330). y runs up, as DXF expects.
  */
 export function cutSheetDXF(d: Design, marks: Mark[] = nameMarks(d)): string {
-  const {items, width, height} = packSheet(d);
-  const byPanel = new Map(items.map(it => [it.id, it]));
+  const s = designSheet(d, marks);
+  return sheetDXF(s.loops, s.labels, s.width, s.height);
+}
+
+/** The DXF writer behind cutSheetDXF, for loops and labels already placed on a sheet (mm, y down). */
+export function sheetDXF(loops: V2[][], labels: SheetLabel[], width: number, height: number): string {
   const n = (v: number) => v.toFixed(3);
   let next = 1;
   const handle = () => (next++).toString(16).toUpperCase();
@@ -98,13 +113,11 @@ export function cutSheetDXF(d: Design, marks: Mark[] = nameMarks(d)): string {
     tag(0, type, type === 'DIMSTYLE' ? 105 : 5, handle(), 330, owner, 100, 'AcDbSymbolTableRecord', 100, subclass, 2, name, 70, 0, ...rest);
   const entities: (string | number)[] = [];
   const entity = (type: string, layer: string, ...rest: (string | number)[]) => entities.push(0, type, 5, handle(), 330, H.model, 100, 'AcDbEntity', 8, layer, 370, 0, ...rest);
-  for (const it of items) for (const loop of it.loops) {
-    entity('LWPOLYLINE', 'CUT', 100, 'AcDbPolyline', 90, loop.length, 70, 1, ...loop.flatMap(q => [10, n(q[0] + it.x), 20, n(height - (q[1] + it.y))]));
+  for (const loop of loops) {
+    entity('LWPOLYLINE', 'CUT', 100, 'AcDbPolyline', 90, loop.length, 70, 1, ...loop.flatMap(q => [10, n(q[0]), 20, n(height - q[1])]));
   }
-  for (const m of marks) {
-    const it = byPanel.get(m.panel);
-    if (!it) continue;
-    const [x, y] = onSheet(it, m.at);
+  for (const m of labels) {
+    const [x, y] = m.at;
     // Centred on the point both ways (72 = 1 centre, 73 = 2 middle), as the SVG's text is.
     entity('TEXT', 'ENGRAVE', 100, 'AcDbText', 10, n(x), 20, n(height - y), 30, 0, 40, n(m.size * 0.7), 1, m.text, 72, 1, 11, n(x), 21, n(height - y), 31, 0, 100, 'AcDbText', 73, 2);
   }

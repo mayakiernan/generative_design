@@ -1,5 +1,5 @@
 /** Shared by both tabs of the slots page: the 3D build scene, the cut sheet drawing and file downloads. */
-import {useEffect, useMemo, useRef} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {useFrame, useThree} from '@react-three/fiber';
 import {Line, OrbitControls} from '@react-three/drei';
 import * as THREE from 'three';
@@ -149,3 +149,16 @@ export function CutSheet({d, marks}: {d: Design; marks?: Mark[]}) {
   );
 }
 
+
+/** Number input that lets you type freely and only clamps and commits on blur or Enter. */
+export function NumberField({value, min, max, step, onCommit, label}: {value: number; min: number; max: number; step: number; onCommit: (v: number) => void; label: string}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const v = Number(draft);
+    const next = Number.isFinite(v) && draft.trim() !== '' ? Math.min(max, Math.max(min, v)) : value;
+    setDraft(String(next));
+    if (next !== value) onCommit(next);
+  };
+  return <input type="number" inputMode="decimal" aria-label={label} min={min} max={max} step={step} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />;
+}

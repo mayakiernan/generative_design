@@ -240,7 +240,7 @@ test('every kit fills a gallery with verified designs, and each exports cut file
       assert.ok(d.ok && d.hits.length === 0 && d.support.tipDeg > 4, `${kit}: ${d.checks.filter(k => k.level === 'error').map(k => k.label)}`);
       assert.equal(it.steps.length, d.panels.length);
       const svg = cutSheetSVG(d, it.marks), dxf = cutSheetDXF(d, it.marks), html = assemblyGuideHTML('t', d, it.parts, it.steps, it.marks);
-      assert.equal((svg.match(/<path /g) ?? []).length, d.panels.length);
+      assert.equal((svg.match(/<path /g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0), 'one cut path per loop');
       assert.equal((svg.match(/<text /g) ?? []).length, it.marks.length);
       assert.equal((dxf.match(/\nLWPOLYLINE\n/g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0));
       assert.ok(dxf.startsWith('0\nSECTION') && dxf.trimEnd().endsWith('EOF'));
@@ -554,4 +554,31 @@ test('a grid spec builds the exact layout, with a fitted top when asked, and wro
   assert.ok(Math.abs(r.item!.top!.width - r.item!.top!.depth) <= 6 + 0.5, 'a square layout gets a square top');
   const wrong = buildDesign({title: 'x', pieceSizeMm: 240, sheetMm: 6, grid: {...grid, bridges: [{layer: 1, from: [0, 0], to: [0, 1]}]}});
   assert.match(wrong.report.text, /layer 1: bridges in this layer join neighbours along x/);
+});
+
+/* ---------- kit sheet: loose pieces in the measured mix ---------- */
+
+import {KIT_SHEET_DEFAULTS, kitSheet} from './kitSheet';
+
+test('a kit sheet fills the stock with the measured mix, half discs in pairs, nothing overlapping', () => {
+  const s = kitSheet(KIT_SHEET_DEFAULTS);
+  assert.deepEqual(s.counts, {C2L: 12, C2I: 10, C3T: 8, C1: 2, H: 6});
+  assert.ok(s.fitStrip && s.warnings.length === 0 && s.covers === 0);
+  const boxes = s.loops.map(l => ({x0: Math.min(...l.map(q => q[0])), x1: Math.max(...l.map(q => q[0])), y0: Math.min(...l.map(q => q[1])), y1: Math.max(...l.map(q => q[1]))}));
+  assert.ok(boxes.every(b => b.x0 >= 8 - 1e-6 && b.y0 >= 8 - 1e-6 && b.x1 <= 609.6 - 8 + 1e-6 && b.y1 <= 457.2 - 8 + 1e-6), 'inside the margins');
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], b = boxes[j];
+    assert.ok(Math.max(b.x0 - a.x1, a.x0 - b.x1, b.y0 - a.y1, a.y0 - b.y1) >= 2 - 1e-6, `parts ${i} and ${j} at least 2 mm apart`);
+  }
+  assert.ok(s.labels.some(l => l.text === 'C3T') && s.labels.some(l => l.text === 'c') && s.labels.some(l => l.text === '3.2'), 'types, slit letters and fit widths engraved');
+});
+
+test('a kit sheet takes a mix and tops, and says what does not fit', () => {
+  const tops = kitSheet({...KIT_SHEET_DEFAULTS, covers: 1, halves: 0, mix: {C2I: 1}});
+  assert.equal(tops.covers, 1);
+  assert.deepEqual(tops.counts, {C2I: 31}, 'a 2× top takes four cells; the rest follow the mix given');
+  const tiny = kitSheet({...KIT_SHEET_DEFAULTS, width: 150, height: 120, halves: 10, covers: 1});
+  assert.ok(tiny.warnings.some(w => /tops fit/.test(w)) && tiny.warnings.some(w => /half discs fit/.test(w)), tiny.warnings.join(' | '));
+  const thick = kitSheet({...KIT_SHEET_DEFAULTS, sheet: 6});
+  assert.ok(thick.warnings.some(w => /too small for tables/.test(w)));
 });

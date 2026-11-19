@@ -1,5 +1,6 @@
 /**
- * Covers: a flat piece of the kit's own shape and size that sits where a surface is wanted.
+ * Covers: a flat piece with no slits that rests where a surface is wanted, either the kit's own shape scaled up or
+ * an outline cut to fit the design's top (fittedCover).
  *
  * Where it sits. Take the convex hull of the whole design. A hull face whose outward normal points up (within
  * MAX_TILT of vertical) is a plane nothing rises above. Every piece that reaches that plane touches it in a contact
@@ -13,15 +14,15 @@
  * it can still tip the whole design once W × (distance of the load beyond a floor support edge) exceeds the
  * design's weight × (distance of its centre of mass inside that edge), so the safe area is rated for that too.
  */
-import type {V2, V3} from './math';
-import {frameOf, hullFaces, IDENTITY, rotationBetween, type Xf} from './kit';
-import {repose} from './kits';
-import {groundSupport, insideMargin, underContacts} from './stability';
-import {makePanel, panelVertices, toWorld, type Frame, type Panel} from './panel';
-import {ccw, clipConvex, convexHull, signedArea} from './poly2d';
-import {solids} from './collide';
-import type {Grown, Piece} from './kits';
-import type {Design} from './engine';
+import type {V2, V3} from './math.js';
+import {frameOf, hullFaces, IDENTITY, rotationBetween, type Xf} from './kit.js';
+import {repose} from './kits.js';
+import {groundSupport, insideMargin, underContacts} from './stability.js';
+import {makePanel, panelVertices, toWorld, type Frame, type Panel} from './panel.js';
+import {ccw, centroid, clipConvex, convexHull, signedArea} from './poly2d.js';
+import {solids} from './collide.js';
+import type {Grown, Piece} from './kits.js';
+import type {Design} from './engine.js';
 
 export const MAX_TILT_DEG = 2;
 /** Supports must lie inside this fraction of the cover's outline (scaled about its centre). */
@@ -87,7 +88,7 @@ function seat(patches: Patch[], outline: V2[], minMargin: number) {
 }
 
 /** The highest level spot on top of the design where the cover's centre sits at least `minMargin` inside its contacts. */
-export function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
+function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
   const faces = hullFaces(panels.flatMap(panelVertices))
     .filter(f => f.n[2] >= Math.cos((MAX_TILT_DEG * Math.PI) / 180))
     .sort((a, b) => Math.max(...b.pts.map(p => p[2])) - Math.max(...a.pts.map(p => p[2])));
@@ -111,14 +112,12 @@ export function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargi
   return null;
 }
 
-/** Put a cover on the design's top surface. Returns the design with the cover appended, or null. */
-export function addCover(g: Grown, cover: Piece, t: number): {g: Grown; spot: CoverSpot} | null {
-  const spot = findCoverSpot(g.panels, t, cover, 0.15 * apothem(cover.outline));
-  if (!spot) return null;
+/** The design with the cover appended at `spot`. */
+function withCover(g: Grown, cover: Piece, t: number, spot: CoverSpot): Grown {
   const id = g.panels.length, f = spot.frame;
   const X: Xf = {R: [f.u[0], f.v[0], f.n[0], f.u[1], f.v[1], f.n[1], f.u[2], f.v[2], f.n[2]], t: f.o};
   const panel = makePanel(id, 'Cover', 'top', cover.outline, f, t, []);
-  return {g: {types: [...g.types, cover.id], X: [...g.X, X], joints: g.joints, travel: [...g.travel, [0, 0, -1]], panels: [...g.panels, panel]}, spot};
+  return {types: [...g.types, cover.id], X: [...g.X, X], joints: g.joints, travel: [...g.travel, [0, 0, -1]], panels: [...g.panels, panel]};
 }
 
 /** How the cover serves as a surface. `top` is the cover panel's index. */
@@ -148,53 +147,67 @@ export const COVER_SCALES = [1, 1.25, 1.5, 1.75, 2, 2.5];
 export interface Stance {height: number; plan: number; coverWidth: number; centreMargin: number; tipDeg: number}
 
 /**
- * Stand a grown design so a cover rests level on top, and add the cover. Tries the design on each axis (and, for
- * kits whose pieces do not line up with the axes, on each hull face with a parallel face opposite); `upright` keeps
- * it standing as built. A stance must
- * stand with its centre of mass at least `minTip` degrees from tipping and pass `accept`; among those, the smallest
- * cover that rests wins, then the stance that tips last. `makeCover(scale)` builds the cover at scale × piece size.
- * Returns the design with the cover appended, or the reason the best attempt failed.
+ * Set a design on the floor as built and rest a cover level on top. It must stand with its centre of mass at least
+ * `minTip` degrees from tipping, and the stance must pass `accept`. Covers are tried at each of `scales` (× piece
+ * size, via `makeCover`) in turn; the first that rests and is accepted wins. Returns the design with the cover
+ * appended, or why it failed.
  */
-export function coverDesign(g: Grown, makeCover: (scale: number) => Piece, t: number, opts: {minTip?: number; accept?: (s: Stance) => string | null; upright?: boolean} = {}):
+export function coverDesign(g: Grown, makeCover: (scale: number) => Piece, t: number, opts: {minTip?: number; accept?: (s: Stance) => string | null; scales?: number[]} = {}):
   {g: Grown; spot: CoverSpot; cover: Piece; scale: number} | {why: string} {
   const minTip = opts.minTip ?? 4, accept = opts.accept ?? (() => null);
-  const X0 = g.X.slice(), T0 = g.travel.slice();
-  const reset = (R: number[]) => { g.X = X0.slice(); g.travel = T0.slice(); repose(g, R); };
-  const why = new Map<string, number>();
-  const reject = (w: string) => why.set(w, (why.get(w) ?? 0) + 1);
-  let best: {R: number[]; scale: number; tip: number} | null = null;
-  const judge = (R: number[]) => {
-    reset(R);
-    const sup = groundSupport(g.panels);
-    if (!(sup.margin > 0)) return reject('would not stand');
-    if (sup.tipDeg < minTip) return reject(`tips under ${minTip}°`);
-    for (const scale of COVER_SCALES) {
-      if (best && scale > best.scale) return;
-      const cover = makeCover(scale), spot = findCoverSpot(g.panels, t, cover, 0.15 * apothem(cover.outline));
-      if (!spot) continue;
-      const xs = g.panels.flatMap(p => panelVertices(p)), coverWidth = Math.max(...cover.outline.map(q => Math.hypot(q[0], q[1]))) * 2;
-      const span = (k: 0 | 1) => Math.max(...xs.map(v => v[k])) - Math.min(...xs.map(v => v[k]));
-      const stance: Stance = {height: Math.max(...xs.map(v => v[2])) - Math.min(...xs.map(v => v[2])) + t, plan: Math.max(span(0), span(1)), coverWidth,
-        centreMargin: insideMargin(sup.hull, [spot.frame.o[0], spot.frame.o[1]]).margin, tipDeg: sup.tipDeg};
-      const no = accept(stance);
-      if (no) { reject(no); continue; }
-      if (!best || scale < best.scale || sup.tipDeg > best.tip) best = {R, scale, tip: sup.tipDeg};
-      return;
-    }
-    if (!best) reject('no level spot on top for the cover');
-  };
-  for (const up of (opts.upright ? [[0, 0, 1]] : [[0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]]) as V3[]) judge(rotationBetween(up, [0, 0, 1]));
-  if (!best && !opts.upright) {
-    // Not axis-aligned (triangles, pentagons, hexagons): rest on a hull face that has a parallel face opposite.
-    reset(IDENTITY.R);
-    const cosT = Math.cos((MAX_TILT_DEG * Math.PI) / 180), faces = hullFaces(g.panels.flatMap(panelVertices));
-    for (const A of faces) if (faces.some(B => dot3(A.n, B.n) <= -cosT)) judge(rotationBetween(A.n, [0, 0, -1]));
+  repose(g, IDENTITY.R);
+  const sup = groundSupport(g.panels);
+  if (!(sup.margin > 0)) return {why: 'would not stand'};
+  if (sup.tipDeg < minTip) return {why: `tips under ${minTip}°`};
+  const xs = g.panels.flatMap(p => panelVertices(p));
+  const span = (k: 0 | 1 | 2) => Math.max(...xs.map(v => v[k])) - Math.min(...xs.map(v => v[k]));
+  let why = 'no level spot on top for the cover';
+  for (const scale of opts.scales ?? COVER_SCALES) {
+    const cover = makeCover(scale), spot = findCoverSpot(g.panels, t, cover, 0.15 * apothem(cover.outline));
+    if (!spot) continue;
+    const coverWidth = Math.max(...cover.outline.map(q => Math.hypot(q[0], q[1]))) * 2;
+    const no = accept({height: span(2) + t, plan: Math.max(span(0), span(1)), coverWidth, centreMargin: insideMargin(sup.hull, [spot.frame.o[0], spot.frame.o[1]]).margin, tipDeg: sup.tipDeg});
+    if (no) { why = no; continue; }
+    return {g: withCover(g, cover, t, spot), spot, cover, scale};
   }
-  if (!best) { reset(IDENTITY.R); return {why: [...why.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'no level spot on top for the cover'}; }
-  const chosen: {R: number[]; scale: number} = best;
-  reset(chosen.R);
-  const cover = makeCover(chosen.scale), placed = addCover(g, cover, t);
-  return placed ? {g: placed.g, spot: placed.spot, cover, scale: chosen.scale} : {why: 'no level spot on top for the cover'};
+  return {why};
 }
 
-const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** Width of a convex polygon: its least extent across any of its edges. */
+function minWidth(poly: V2[]): number {
+  let w = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < 1e-9) continue;
+    const n: V2 = [(b[1] - a[1]) / l, -(b[0] - a[0]) / l], d = poly.map(q => (q[0] - a[0]) * n[0] + (q[1] - a[1]) * n[1]);
+    w = Math.min(w, Math.max(...d) - Math.min(...d));
+  }
+  return w;
+}
+
+/**
+ * A cover cut to fit the design's top: the plan hull of its highest points grown outward by `margin`, corners
+ * rounded (the hull's Minkowski sum with a disc), and widened until it is at least `minWidth` across in every
+ * direction. Centred on its centroid. Null when the top is a single point or line, which leaves nothing to fit.
+ */
+export function fittedCover(panels: Panel[], t: number, clearance: number, margin: number, least = 0, arcSteps = 8): Piece | null {
+  const vs = panels.flatMap(panelVertices), top = Math.max(...vs.map(v => v[2]));
+  const hull = ccw(convexHull(vs.filter(v => v[2] > top - 0.05).map(v => [v[0], v[1]] as V2)));
+  if (hull.length < 3 || signedArea(hull) < 1e-6) return null;
+  const grown = (m: number): V2[] => {
+    const out: V2[] = [];
+    hull.forEach((v, i) => {
+      const a = hull[(i + hull.length - 1) % hull.length], b = hull[(i + 1) % hull.length];
+      // Outward normals of the edges into and out of v (CCW hull: the right-hand normal points out).
+      let a0 = Math.atan2(-(v[0] - a[0]), v[1] - a[1]), a1 = Math.atan2(-(b[0] - v[0]), b[1] - v[1]);
+      if (a1 < a0) a1 += 2 * Math.PI;
+      for (let k = 0; k <= arcSteps; k++) { const th = a0 + ((a1 - a0) * k) / arcSteps; out.push([v[0] + m * Math.cos(th), v[1] + m * Math.sin(th)]); }
+    });
+    return out;
+  };
+  let outline = grown(margin);
+  const short = least - minWidth(outline);
+  if (short > 0) outline = grown(margin + short / 2);
+  const c = centroid(outline);
+  return {id: 'CF', name: 'Cover, cut to fit', outline: outline.map(q => [q[0] - c[0], q[1] - c[1]] as V2), slits: [], len: 0, cuts: [], w: t + clearance};
+}

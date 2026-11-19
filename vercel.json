@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/compare.ts": {"maxDuration": 300}
+    "api/compare.ts": {
+      "maxDuration": 300
+    },
+    "api/kit-agent.ts": {
+      "maxDuration": 300
+    }
   }
 }

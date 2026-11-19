@@ -5,8 +5,8 @@
  *   DXF (R2000): outlines on layer CUT (red) as closed LWPOLYLINEs, labels on layer ENGRAVE (blue), lineweight 0.
  * The assembly guide is a self-contained HTML page: parts list, the labelled sheet, and the build steps.
  */
-import type {Design} from './engine';
-import type {V2} from './math';
+import type {Design} from './engine.js';
+import type {V2} from './math.js';
 
 export interface SheetItem {id: number; name: string; loops: V2[][]; x: number; y: number; w: number; h: number; x0: number; y1: number}
 /** Engraved text on a panel, in that panel's own 2D coordinates. */

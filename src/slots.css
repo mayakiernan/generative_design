@@ -100,6 +100,12 @@ aside form .label{margin-top:0}
 .kit-card:hover{border-color:#cfcdc5}
 .kit-card.on{border-color:#e95319;box-shadow:0 0 0 1px #e95319 inset}
 .kit-only{max-width:420px;margin:0 0 6px}
+.kg-mode{display:inline-flex;margin:0 0 16px}.kg-mode button{padding:9px 16px;font-size:13px}
+@media (max-width:760px){.kg-mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.kg-mode button{padding:9px 6px;font-size:12px}.kg-mode button:not(:last-child){border-right:1px solid #e4e3dd}}
+.agent-log{list-style:none;margin:12px 0 0;padding:10px 12px;background:#faf9f6;border:1px solid #eceae4;border-radius:6px;max-height:260px;overflow:auto;font-size:12.5px;line-height:1.55;color:#55554f}
+.agent-log li+li{margin-top:4px}.agent-log li.pass{color:#3c8a5a}.agent-log li.fail{color:#b0560f}
+.agent-notes{margin:14px 0 0;padding-left:18px;font-size:13px;color:#55554f;max-width:860px}.agent-notes li+li{margin-top:4px}
+.kg-mode-note{max-width:760px;margin:0 0 22px}
 .ai-examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .ai-examples button{border:1px solid #e4e3dd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;color:#55554f;cursor:pointer}
 .ai-examples button:hover{border-color:#e95319;color:#e95319}

@@ -20,10 +20,10 @@
  * Only declared joints are carved. Anything else in the way stays in the way, so the collision check and the
  * assembly planner report it rather than this step quietly eating a panel.
  */
-import {add, dot, scale, sub, type V2, type V3} from './math';
-import {solids} from './collide';
-import {applyCut, toLocal, type CutKind, type Panel, type SlitType} from './panel';
-import {convexHull, offsetConvex, signedArea, simplifyConvex} from './poly2d';
+import {add, dot, scale, sub, type V2, type V3} from './math.js';
+import {solids} from './collide.js';
+import {applyCut, toLocal, type CutKind, type Panel, type SlitType} from './panel.js';
+import {convexHull, offsetConvex, signedArea, simplifyConvex} from './poly2d.js';
 
 export type JointMode = 'lap' | 'through' | 'moving';
 

@@ -17,10 +17,10 @@
  */
 import {ConvexHull} from 'three/examples/jsm/math/ConvexHull.js';
 import {Vector3} from 'three';
-import {add, cross, dot, len, norm, scale, sub, type V2, type V3} from './math';
-import {convexHull, convexOverlap, rayHit, signedArea} from './poly2d';
-import {panelDepth} from './collide';
-import {makePanel, type Frame} from './panel';
+import {add, cross, dot, len, norm, scale, sub, type V2, type V3} from './math.js';
+import {convexHull, convexOverlap, rayHit, signedArea} from './poly2d.js';
+import {panelDepth} from './collide.js';
+import {makePanel, type Frame} from './panel.js';
 
 export interface KitParams {
   sides: number;

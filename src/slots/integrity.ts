@@ -8,9 +8,9 @@
  * material (to the left of the edge; material is always on the left of boundary loops) and the distance to the
  * next boundary is measured. The minimum is the thinnest bridge, e.g. between a slit's end and the opposite edge.
  */
-import {cross2, dot2, sub2, type V2} from './math';
-import type {Panel} from './panel';
-import {boundaryLoops, rayHit} from './poly2d';
+import {cross2, dot2, sub2, type V2} from './math.js';
+import type {Panel} from './panel.js';
+import {boundaryLoops, rayHit} from './poly2d.js';
 
 export function components(pieces: V2[][], tol = 1e-4): number {
   const parent = pieces.map((_, i) => i);

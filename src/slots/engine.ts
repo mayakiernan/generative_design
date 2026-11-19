@@ -5,16 +5,16 @@
  * usable ligament · an assembly sequence found independently by the planner · ground support and tip angle ·
  * how each part is held · parts that only rest on others stay on.
  */
-import {carve} from './carve';
-import {collisions, panelBox, type Hit} from './collide';
-import {kitDefaults, MATRIX, SLIT_INFO, type Layout} from './generators';
-import {fitRange, makeModule, moduleProblem, ringClear, ringSolutions, type KitParams} from './kit';
-import {integrity} from './integrity';
-import {deg, dot, rng, type V2, type V3} from './math';
-import {panelArea, type Frame, type Panel, type Role, type SlitType} from './panel';
-import {describeTravel, planAssembly} from './plan';
-import {defaultThickness, type Brief} from './prompt';
-import {groundSupport, partHold, restingSupport, type Hold} from './stability';
+import {carve} from './carve.js';
+import {collisions, panelBox, type Hit} from './collide.js';
+import {kitDefaults, MATRIX, SLIT_INFO, type Layout} from './generators.js';
+import {fitRange, makeModule, moduleProblem, ringClear, ringSolutions, type KitParams} from './kit.js';
+import {integrity} from './integrity.js';
+import {deg, dot, rng, type V2, type V3} from './math.js';
+import {panelArea, type Frame, type Role, type SlitType} from './panel.js';
+import {describeTravel, planAssembly} from './plan.js';
+import {defaultThickness, type Brief} from './prompt.js';
+import {groundSupport, partHold, restingSupport, type Hold} from './stability.js';
 
 export interface Options {slit: SlitType; thickness: number | null; clearance: number; seed: number; candidates: number; kit?: KitParams | null}
 

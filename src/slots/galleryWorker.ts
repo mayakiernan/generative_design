@@ -1,4 +1,4 @@
-import {gallery, type GalleryOptions} from './gallery';
+import {gallery, type GalleryOptions} from './gallery.js';
 
 /** Streams verified designs to the page as they are found. */
 self.onmessage = (event: MessageEvent<GalleryOptions>) => {

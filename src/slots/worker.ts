@@ -1,5 +1,5 @@
-import {generate, type Options} from './engine';
-import {parsePrompt} from './prompt';
+import {generate, type Options} from './engine.js';
+import {parsePrompt} from './prompt.js';
 
 /** Runs the candidate search off the UI thread. */
 self.onmessage = (event: MessageEvent<Options & {prompt: string}>) => {

@@ -137,6 +137,35 @@ export function convexHull(pts: V2[]): V2[] {
   return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
 
+/**
+ * Smallest circle holding every point (Welzl's incremental form: the circle is fixed by two or three of the points).
+ * Worst case cubic in the number of points, so pass a convex hull.
+ */
+export function enclosingCircle(pts: V2[]): {c: V2; r: number} {
+  const dist = (a: V2, b: V2) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const two = (a: V2, b: V2) => ({c: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as V2, r: dist(a, b) / 2});
+  const three = (a: V2, b: V2, q: V2) => {
+    const d = 2 * (a[0] * (b[1] - q[1]) + b[0] * (q[1] - a[1]) + q[0] * (a[1] - b[1]));
+    // Collinear: the circle on the two farthest apart.
+    if (Math.abs(d) < 1e-12) return [two(a, b), two(a, q), two(b, q)].reduce((x, y) => (y.r > x.r ? y : x));
+    const A = a[0] ** 2 + a[1] ** 2, B = b[0] ** 2 + b[1] ** 2, Q = q[0] ** 2 + q[1] ** 2;
+    const c: V2 = [(A * (b[1] - q[1]) + B * (q[1] - a[1]) + Q * (a[1] - b[1])) / d, (A * (q[0] - b[0]) + B * (a[0] - q[0]) + Q * (b[0] - a[0])) / d];
+    return {c, r: dist(c, a)};
+  };
+  const holds = (C: {c: V2; r: number}, p: V2) => dist(C.c, p) <= C.r + 1e-7;
+  let C = {c: (pts[0] ?? [0, 0]) as V2, r: 0};
+  for (let i = 1; i < pts.length; i++) {
+    if (holds(C, pts[i])) continue;
+    C = {c: pts[i], r: 0};
+    for (let j = 0; j < i; j++) {
+      if (holds(C, pts[j])) continue;
+      C = two(pts[i], pts[j]);
+      for (let k = 0; k < j; k++) if (!holds(C, pts[k])) C = three(pts[i], pts[j], pts[k]);
+    }
+  }
+  return C;
+}
+
 /** Push every edge of a convex polygon outward by d (mitred). Used for fit clearance. */
 export function offsetConvex(p: V2[], d: number): V2[] {
   if (d === 0 || p.length < 3) return p;

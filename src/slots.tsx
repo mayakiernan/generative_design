@@ -14,7 +14,7 @@ import {describeHold, type Hold} from './slots/stability';
 import {assemblyGuideHTML, cutSheetDXF, cutSheetSVG, loopPath, onSheet, packSheet, type Mark} from './slots/svg';
 import {coverPiece, finishPieces, KITS, type Intent, type KitId, type Piece} from './slots/kits';
 import type {GalleryItem} from './slots/gallery';
-import {LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES} from './slots/recipe';
+import {FOOTPRINT_X, LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES} from './slots/recipe';
 import './slots.css';
 
 const SLITS: SlitType[] = ['cross', 'radial', 'edge', 'tab', 'kit'];
@@ -424,7 +424,7 @@ function SlitIcon({kind}: {kind: SlitType}) {
 const KIT_FILL: Record<KitId, string> = {circle: '#8082a3', triangle: '#8f9c78', pentagon: '#b4836f', hexagon: '#d2b483', decagon: '#7f9aa6'};
 /** A few close shades of one colour, so neighbouring pieces read apart in 3D. */
 const tints = (hex: string) => [1.12, 1, 1.22, 0.92, 1.06].map(k => `#${new THREE.Color(hex).multiplyScalar(k).getHexString()}`);
-const INTENTS: [Intent, string][] = [['table', 'Table'], ['any', 'Sculpture'], ['tower', 'Tower'], ['spread', 'Spread'], ['compact', 'Compact']];
+const INTENTS: [Intent, string][] = [['table', 'Table'], ['random', 'Random'], ['any', 'Sculpture'], ['tower', 'Tower'], ['spread', 'Spread'], ['compact', 'Compact']];
 const TOP_FILL = '#ece3d0';
 
 /** One kit piece, flat, with its slits. */
@@ -480,8 +480,9 @@ function NumberField({value, min, max, step, onCommit, label}: {value: number; m
   return <input type="number" inputMode="decimal" aria-label={label} min={min} max={max} step={step} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />;
 }
 
-interface GallerySettings {kit: KitId; intent: Intent; count: number; size: number; t: number; clearance: number; favour: string[]; avoid: string[]; branching: 'chain' | 'mixed' | 'bushy' | null}
-const START: GallerySettings = {kit: 'circle', intent: 'table', count: 14, size: 240, t: 6, clearance: 0.2, favour: [], avoid: [], branching: null};
+/** `footprint`: the random form's circle on the floor, as a diameter in piece sizes (so it follows the piece size). */
+interface GallerySettings {kit: KitId; intent: Intent; count: number; size: number; t: number; clearance: number; footprint: number; favour: string[]; avoid: string[]; branching: 'chain' | 'mixed' | 'bushy' | null}
+const START: GallerySettings = {kit: 'circle', intent: 'table', count: 14, size: 240, t: 6, clearance: 0.2, footprint: FOOTPRINT_X.start, favour: [], avoid: [], branching: null};
 
 function KitGallery() {
   const [cfg, setCfg] = useState<GallerySettings>(START);
@@ -497,7 +498,7 @@ function KitGallery() {
   const [aiError, setAiError] = useState('');
   const kitPieces = useMemo(() => Object.fromEntries(KITS.map(k => [k.id, finishPieces(k.id, 100, 4, 0.2)])) as Record<KitId, Piece[]>, []);
   const covers = useMemo(() => Object.fromEntries(KITS.map(k => [k.id, coverPiece(k.id, 100, 4, 0.2)])) as Record<KitId, Piece>, []);
-  const table = cfg.intent === 'table';
+  const table = cfg.intent === 'table', random = cfg.intent === 'random';
   const pieceName = (id: string) => Object.values(kitPieces).flat().find(p => p.id === id)?.name ?? id;
   const wanted = !table && cfg.count > 16 ? 6 : 9;
 
@@ -515,7 +516,7 @@ function KitGallery() {
     };
     w.onerror = () => { setBusy(false); setNote('The search stopped unexpectedly.'); w.terminate(); };
     const attempts = table ? 200 : Math.round((cfg.intent === 'tower' ? 160 : 70) * (1 + cfg.count / 12));
-    w.postMessage({kit: cfg.kit, intent: cfg.intent, count: cfg.count, size: cfg.size, t: cfg.t, clearance: cfg.clearance, seed: round, designs: wanted, attempts,
+    w.postMessage({kit: cfg.kit, intent: cfg.intent, count: cfg.count, size: cfg.size, t: cfg.t, clearance: cfg.clearance, footprint: cfg.footprint * cfg.size, seed: round, designs: wanted, attempts,
       weights: recipeWeights({favour: cfg.favour as never[], avoid: cfg.avoid as never[]}), branching: cfg.branching ?? undefined});
     return () => w.terminate();
   }, [cfg, round, wanted, table]);
@@ -529,7 +530,8 @@ function KitGallery() {
       if (!res.ok || !data.recipe) throw new Error(data.error ?? `The server answered ${res.status}.`);
       const r = data.recipe as Recipe;
       setAi({recipe: r, model: data.model});
-      setCfg(c => ({...c, kit: r.kit, intent: r.form, count: r.pieces, size: r.pieceSizeMm, t: r.sheetMm, favour: r.favour, avoid: r.avoid, branching: r.branching}));
+      const footprint = Math.min(FOOTPRINT_X.max, Math.max(FOOTPRINT_X.min, Math.round((r.footprintMm / r.pieceSizeMm) * 4) / 4));
+      setCfg(c => ({...c, kit: r.kit, intent: r.form, count: r.pieces, size: r.pieceSizeMm, t: r.sheetMm, footprint: r.form === 'random' ? footprint : c.footprint, favour: r.favour, avoid: r.avoid, branching: r.branching}));
       setRound(x => x + 1);
     } catch (e) {
       setAiError(e instanceof Error ? e.message : 'Could not reach Claude.');
@@ -540,7 +542,7 @@ function KitGallery() {
     <div className="kg">
       <section className="kg-intro">
         <h1>Slot kits</h1>
-        <p>A kit is one shape at one size: every piece is identical apart from its slits. What forms can one shape make? Choose a kit, or describe what you want and let Claude Opus 5.5 set it up. <b>Table</b> stacks the circles into a grid, layer on layer, and lays the kit's cover (the same shape, no slits, sized up just enough to rest on the grid) on top as the surface; the other forms grow sculptures. Every design is checked before it is shown: nothing overlaps, it builds in order, it stands, nothing can slide out, and a table's joints, which act as hinges about their slit lines, cannot fold under weight on the cover. Open one for its build steps and laser files.</p>
+        <p>A kit is one shape at one size: every piece is identical apart from its slits. What forms can one shape make? Choose a kit, or describe what you want and let Claude Opus 5.5 set it up. <b>Table</b> stacks the circles into a grid, layer on layer, and lays the kit's cover (the same shape, no slits, sized up just enough to rest on the grid) on top as the surface. <b>Random</b> aims at no shape: it branches at random and grows up from the floor, kept inside a circle on the floor that you set. The other forms grow sculptures toward a shape. Every design is checked before it is shown: nothing overlaps, it builds in order, it stands, nothing can slide out, and a table's joints, which act as hinges about their slit lines, cannot fold under weight on the cover. Open one for its build steps and laser files.</p>
       </section>
 
       <form className="ai-brief" onSubmit={e => { e.preventDefault(); askClaude(); }}>
@@ -554,7 +556,7 @@ function KitGallery() {
           <div className="ai-recipe">
             <b>{ai.recipe.title}</b>
             <span>{ai.recipe.rationale}</span>
-            <span className="muted">{KITS.find(k => k.id === ai.recipe.kit)?.name} kit · {ai.recipe.form === 'table' ? 'table with a cover' : ai.recipe.form} · {ai.recipe.pieces} pieces · every piece {ai.recipe.pieceSizeMm} mm{ai.recipe.form === 'table' ? '' : ` · ${ai.recipe.branching} branching`} · {ai.recipe.sheetMm} mm sheet{ai.recipe.favour.length ? ` · favours ${ai.recipe.favour.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''}{ai.recipe.avoid.length ? ` · leaves out ${ai.recipe.avoid.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''} · set by {ai.model}</span>
+            <span className="muted">{KITS.find(k => k.id === ai.recipe.kit)?.name} kit · {ai.recipe.form === 'table' ? 'table with a cover' : ai.recipe.form === 'random' ? `random, inside a ${ai.recipe.footprintMm} mm circle` : ai.recipe.form} · {ai.recipe.pieces} pieces · every piece {ai.recipe.pieceSizeMm} mm{ai.recipe.form === 'table' || ai.recipe.form === 'random' ? '' : ` · ${ai.recipe.branching} branching`} · {ai.recipe.sheetMm} mm sheet{ai.recipe.favour.length ? ` · favours ${ai.recipe.favour.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''}{ai.recipe.avoid.length ? ` · leaves out ${ai.recipe.avoid.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''} · set by {ai.model}</span>
           </div>
         )}
       </form>
@@ -572,6 +574,7 @@ function KitGallery() {
       <div className="kg-controls">
         <div className="seg" role="radiogroup" aria-label="Form">{INTENTS.map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={id === cfg.intent} className={id === cfg.intent ? 'on' : ''} onClick={() => set(id === 'table' ? {intent: id, count: Math.max(cfg.count, TABLE_MIN_PIECES)} : {intent: id})}>{label}</button>)}</div>
         <label>Pieces <b>{cfg.count}{table ? ' + cover' : ''}</b><input type="range" min={table ? TABLE_MIN_PIECES : LIMITS.pieces[0]} max={LIMITS.pieces[1]} value={cfg.count} onChange={e => set({count: Number(e.target.value)})} /></label>
+        {random && <label>Footprint <b>⌀ {Math.round(cfg.footprint * cfg.size)} mm</b><input type="range" aria-label="Diameter of the circle on the floor, in piece sizes" min={FOOTPRINT_X.min} max={FOOTPRINT_X.max} step={0.25} value={cfg.footprint} onChange={e => set({footprint: Number(e.target.value)})} /></label>}
         <label>Piece size <span className="unit"><NumberField label="Size of every piece in mm" value={cfg.size} min={LIMITS.pieceSizeMm[0]} max={LIMITS.pieceSizeMm[1]} step={10} onCommit={v => set({size: v})} />mm</span></label>
         <label>Sheet <span className="unit"><NumberField label="Sheet thickness in mm" value={cfg.t} min={LIMITS.sheetMm[0]} max={LIMITS.sheetMm[1]} step={0.1} onCommit={v => set({t: v})} />mm</span></label>
         <label>Fit <span className="unit">+<NumberField label="Slit clearance in mm" value={cfg.clearance} min={0} max={1} step={0.05} onCommit={v => set({clearance: v})} />mm</span></label>
@@ -587,7 +590,7 @@ function KitGallery() {
             {it.top ? (
               <span className="kg-card-meta"><b>Table {i + 1}</b><span>{it.design.panels.length - 1} pieces + cover{it.top.coverScale === 1 ? '' : ` (${it.top.coverScale}×)`} · surface {Math.round(it.top.height)} mm up</span><span className="ok">level · {Math.round(it.top.safeFrac * 100)}% supported{isFinite(it.top.loadKg) ? ` · tips past ${it.top.loadKg >= 100 ? '100+' : it.top.loadKg.toFixed(1)} kg` : ''}</span></span>
             ) : (
-              <span className="kg-card-meta"><b>Design {i + 1}</b><span>{it.design.panels.length} pieces · {Math.round(it.design.size.height)} mm tall</span><span className="ok">stands · tips at {Math.round(it.design.support.tipDeg)}°</span></span>
+              <span className="kg-card-meta"><b>Design {i + 1}</b><span>{it.design.panels.length} pieces · {Math.round(it.design.size.height)} mm tall{it.footprint ? ` · ⌀ ${Math.ceil(it.footprint.needed)} mm` : ''}</span><span className="ok">stands · tips at {Math.round(it.design.support.tipDeg)}°</span></span>
             )}
           </button>
         ))}

@@ -16,6 +16,7 @@ const RecipeSchema = z.object({
   form: z.enum(FORMS),
   pieces: z.number(),
   pieceSizeMm: z.number(),
+  footprintMm: z.number(),
   sheetMm: z.number(),
   favour: z.array(z.enum(PIECE_IDS)),
   avoid: z.array(z.enum(PIECE_IDS)),
@@ -34,15 +35,16 @@ Kits. A kit is one shape at one size; its pieces differ only in their slits, and
 - pentagon (P5), hexagon (P6), decagon (P10): one regular polygon with an offset slit on every edge, the only piece in its kit.
 
 The cover. Every kit also has a cover: its own shape with no slits. It rests where a flat surface is wanted. In the table form the generator stacks circle discs into a grid, as you would by hand: columns of discs on a square lattice, flat discs bridging neighbouring columns, each layer turned 90° and lowered onto the one below so the columns cross on vertical slits. It then lays the cover on the column tops, sized up just enough to rest well inside its edge (usually 1.75–2.5× the piece size across), and checks it is level, how much of it is over its supports, how much load would tip the design, and that no joint can fold under weight on the cover (a slit joint acts as a hinge about its slit line, so only closed loops of joints are rigid). Tables need the circle kit: the other kits never close those loops. If a brief asks for a table from another kit, use the circle kit and say why in the rationale. A table stands about 1.55× the piece size tall with 12–16 pieces (two layers), about 2× with 16–24 pieces (three layers) and about 2.6× with 24–30 pieces (four layers).
-Use form "table" whenever the brief describes something meant to hold or present objects: a table, side table, stool, plant stand, display stand, tray, nightstand. Everything else (lamps, sculptures, towers, ornaments) uses the other forms.
+Use form "table" whenever the brief describes something meant to hold or present objects: a table, side table, stool, plant stand, display stand, tray, nightstand. Use form "random" when the brief asks for something random, surprising or unplanned, or gives only the floor space it may take. Everything else (lamps, sculptures, towers, ornaments) uses the other forms.
 
 Settings:
-- form: table (a level cover on top, see above), tower (stands on its long axis, tall), spread (lies low and wide), compact (dense ball-like cluster), any (whatever stands best).
+- form: table (a level cover on top, see above), tower (stands on its long axis, tall), spread (lies low and wide), compact (dense ball-like cluster), any (whatever stands best), random (no target shape: random branching, growing up from the floor inside a circle of footprintMm, any height).
 - pieces: 4–30, not counting the cover. More pieces take longer and fail more often; towers above about 20 pieces rarely stand.
 - pieceSizeMm: the size of every piece, 40–600: diameter for discs, side for triangles, corner-to-corner width for polygons. For a table pick it from the height wanted (see above); a 240 mm disc gives a side table about 500 mm tall with a cover about 420–600 mm across. Desk objects 60–160, a lamp or vase 120–250.
+- footprintMm: for the random form, the diameter of the circle on the floor the design must fit inside, 2–8× pieceSizeMm. Use the brief's floor space if it gives one; otherwise about 4× pieceSizeMm, or 5× for more than 22 pieces (a tighter circle with many pieces yields few designs). For other forms give 4× pieceSizeMm; it is ignored.
 - sheetMm: 1–20. Cardboard 3–4, plywood 3, 6, 9 or 12, acrylic 3. Use what the brief names; otherwise pick for the scale.
 - favour / avoid: piece ids to use more often or not at all. Leave both empty when the brief gives no reason.
-- branching: chain (long arms; towers, snakes), bushy (fills in around the start; compact clusters), mixed. Ignored for tables.
+- branching: chain (long arms; towers, snakes), bushy (fills in around the start; compact clusters), mixed. Ignored for tables and random (random draws one per design).
 - title: two to five words naming the set.
 - rationale: one or two plain sentences on what you chose and why. If the brief asks for something these kits cannot do (exact dimensions, a large single surface, curved surfaces, moving parts), say so and say what you chose instead.
 

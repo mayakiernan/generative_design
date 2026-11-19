@@ -154,6 +154,8 @@ button.primary{border:1px solid #e95319;background:#e95319;color:#fff;border-rad
 .kg-controls .unit input{width:72px}
 .fit-note{margin:-10px 0 18px !important}
 @media (max-width:760px){.ai-row{flex-direction:column}}
+/* Six forms: two rows of three on a phone, so none is cut off. */
+@media (max-width:760px){.kg-controls .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.kg-controls .seg button{padding:9px 6px}.kg-controls .seg button:nth-child(3n){border-right:0}.kg-controls .seg button:nth-child(-n+3){border-bottom:1px solid #e4e3dd}}
 
 /* ---------- tables ---------- */
 .kit-cover{display:inline-flex;padding-left:8px;margin-left:2px;border-left:1px solid #eceae4}

@@ -278,10 +278,11 @@ test('30-piece kit designs verify after loose end pieces are pruned', () => {
 });
 
 test('recipes are clamped to what the generator supports', () => {
-  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
+  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, footprintMm: 5000, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
   const k = clampRecipe(r);
   assert.equal(k.pieces, 30);
   assert.equal(k.pieceSizeMm, 40);
+  assert.equal(k.footprintMm, 8 * 40, 'the footprint circle is held to 2–8 piece sizes');
   assert.equal(k.sheetMm, 2.7);
   assert.ok(!k.favour.includes('P6' as never), 'pieces from another kit are dropped');
   assert.ok(['C2L', 'C2I', 'C3T', 'H'].some(id => !k.avoid.includes(id as never)), 'a growing piece is always left');
@@ -356,4 +357,32 @@ test('no design pairs two half discs notch to notch', () => {
     for (const j of g.joints) { joints++; assert.ok(!(g.types[j.child] === 'H' && g.types[j.parent] === 'H'), `H–H joint in seed ${s}`); }
   }
   assert.ok(joints > 0);
+});
+
+/* ---------- random form: no target shape, inside a circle on the floor ---------- */
+
+import {enclosingCircle} from './poly2d';
+import {planDiameter} from './gallery';
+
+test('smallest enclosing circle: two points set it, or three on its rim', () => {
+  const sq = enclosingCircle([[0, 0], [2, 0], [2, 2], [0, 2], [1, 1]]);
+  assert.ok(Math.abs(sq.r - Math.SQRT2) < 1e-9 && Math.abs(sq.c[0] - 1) < 1e-9 && Math.abs(sq.c[1] - 1) < 1e-9);
+  const obtuse = enclosingCircle([[-3, 0], [3, 0], [0, 1]]);
+  assert.ok(Math.abs(obtuse.r - 3) < 1e-9, 'an obtuse triangle is held by the circle on its long side');
+  const acute = enclosingCircle([[-1, 0], [1, 0], [0, 1.5]]);
+  assert.ok(Math.abs(Math.hypot(acute.c[0] + 1, acute.c[1]) - acute.r) < 1e-9 && Math.abs(Math.hypot(acute.c[0], acute.c[1] - 1.5) - acute.r) < 1e-9);
+});
+
+test('random designs fit inside their footprint circle and pass every check', () => {
+  for (const [kit, size, limit] of [['circle', 200, 800], ['hexagon', 160, 480]] as const) {
+    const items = [...gallery({kit, intent: 'random', count: 10, size, t: 4, clearance: c, seed: 1, designs: 3, attempts: 60, footprint: limit})].filter((x): x is GalleryItem => 'design' in x);
+    assert.ok(items.length >= 2, `${kit}: ${items.length} random designs`);
+    for (const it of items) {
+      const d = it.design;
+      assert.ok(d.ok, d.checks.filter(x => x.level === 'error').map(x => x.label).join(', '));
+      assert.ok(planDiameter(d.panels) <= limit + 0.5 && it.footprint!.needed <= limit + 0.5, `${kit}: plan ${planDiameter(d.panels).toFixed(0)} mm in a ${limit} mm circle`);
+      assert.equal(d.checks.find(x => x.label === 'Footprint')?.level, 'ok');
+      assert.ok(d.panels.length >= Math.ceil(0.75 * 10) && d.panels.length <= 10);
+    }
+  }
 });

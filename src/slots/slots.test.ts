@@ -242,7 +242,7 @@ test('every kit fills a gallery with verified designs, and each exports cut file
       const svg = cutSheetSVG(d, it.marks), dxf = cutSheetDXF(d, it.marks), html = assemblyGuideHTML('t', d, it.parts, it.steps, it.marks);
       assert.equal((svg.match(/<path /g) ?? []).length, d.panels.length);
       assert.equal((svg.match(/<text /g) ?? []).length, it.marks.length);
-      assert.equal((dxf.match(/\nPOLYLINE\n/g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0));
+      assert.equal((dxf.match(/\nLWPOLYLINE\n/g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0));
       assert.ok(dxf.startsWith('0\nSECTION') && dxf.trimEnd().endsWith('EOF'));
       assert.ok(it.steps.every(st => html.includes(st.text.replace(/&/g, '&amp;'))));
     }
@@ -384,5 +384,63 @@ test('random designs fit inside their footprint circle and pass every check', ()
       assert.equal(d.checks.find(x => x.label === 'Footprint')?.level, 'ok');
       assert.ok(d.panels.length >= Math.ceil(0.75 * 10) && d.panels.length <= 10);
     }
+  }
+});
+
+/* ---------- laser files: the lab's line weights ---------- */
+
+import {CUT_STROKE_MM} from './svg';
+
+test('cut files carry the laser line weights: 0.072 pt in the SVG, lineweight 0 in a well-formed R2000 DXF', () => {
+  const it = [...gallery({kit: 'circle', intent: 'any', count: 6, size: 150, t: 4, clearance: c, seed: 1, designs: 1, attempts: 40})].find((x): x is GalleryItem => 'design' in x)!;
+  const svg = cutSheetSVG(it.design, it.marks);
+  // 1 SVG unit is 1 mm, so the stroke is 0.072 pt written in millimetres.
+  assert.ok(/width="[\d.]+mm"/.test(svg) && Math.abs(CUT_STROKE_MM * (72 / 25.4) - 0.072) < 1e-12);
+  assert.ok([...svg.matchAll(/stroke-width="([\d.]+)"/g)].every(m => Math.abs(Number(m[1]) - 0.0254) < 1e-9));
+
+  const dxf = cutSheetDXF(it.design, it.marks).split('\n');
+  assert.equal(dxf.pop(), '');
+  assert.equal(dxf.length % 2, 0, 'code/value pairs');
+  const pairs: [number, string][] = [];
+  for (let i = 0; i < dxf.length; i += 2) pairs.push([Number(dxf[i]), dxf[i + 1]]);
+  assert.ok(pairs.every(([code]) => Number.isInteger(code)));
+  // Records: each starts at a code 0.
+  const records: [number, string][][] = [];
+  for (const p of pairs) { if (p[0] === 0) records.push([p]); else records[records.length - 1].push(p); }
+  const get = (r: [number, string][], code: number) => r.find(p => p[0] === code)?.[1];
+  const sections = records.filter(r => r[0][1] === 'SECTION').map(r => get(r, 2));
+  assert.deepEqual(sections, ['HEADER', 'CLASSES', 'TABLES', 'BLOCKS', 'ENTITIES', 'OBJECTS']);
+  assert.equal(records[records.length - 1][0][1], 'EOF');
+  const header = records[0];
+  assert.equal(header[header.findIndex(p => p[1] === '$ACADVER') + 1][1], 'AC1015');
+  const seed = parseInt(header[header.findIndex(p => p[1] === '$HANDSEED') + 1][1], 16);
+  // Every object has a unique handle below $HANDSEED, and every owner (330) is a handle in the file or 0.
+  const handles = records.filter(r => r[0][1] !== 'SECTION' && r[0][1] !== 'ENDSEC' && r[0][1] !== 'ENDTAB' && r[0][1] !== 'EOF').map(r => get(r, r[0][1] === 'DIMSTYLE' ? 105 : 5));
+  assert.ok(handles.every(h => h !== undefined), 'every object has a handle');
+  assert.equal(new Set(handles).size, handles.length);
+  assert.ok(handles.every(h => parseInt(h!, 16) < seed));
+  const known = new Set(handles);
+  assert.ok(records.every(r => { const o = get(r, 330); return o === undefined || o === '0' || known.has(o); }));
+  const tables = records.filter(r => r[0][1] === 'TABLE').map(r => get(r, 2));
+  assert.deepEqual(tables, ['VPORT', 'LTYPE', 'LAYER', 'STYLE', 'VIEW', 'UCS', 'APPID', 'DIMSTYLE', 'BLOCK_RECORD']);
+  const named = (type: string) => records.filter(r => r[0][1] === type).map(r => get(r, 2));
+  assert.deepEqual(named('LTYPE'), ['ByBlock', 'ByLayer', 'Continuous']);
+  assert.deepEqual(named('BLOCK_RECORD'), ['*Model_Space', '*Paper_Space']);
+  assert.deepEqual(named('BLOCK'), ['*Model_Space', '*Paper_Space']);
+  const layer = (name: string) => records.find(r => r[0][1] === 'LAYER' && get(r, 2) === name)!;
+  assert.equal(get(layer('CUT'), 62), '1', 'cut layer red');
+  assert.equal(get(layer('ENGRAVE'), 62), '5', 'engrave layer blue');
+  assert.equal(get(layer('CUT'), 370), '0');
+  assert.equal(get(layer('ENGRAVE'), 370), '0');
+  const drawn = records.filter(r => r[0][1] === 'LWPOLYLINE' || r[0][1] === 'TEXT');
+  const model = records.find(r => r[0][1] === 'BLOCK_RECORD' && get(r, 2) === '*Model_Space')!;
+  assert.equal(drawn.length, it.design.panels.reduce((s, p) => s + p.loops.length, 0) + it.marks.length);
+  for (const r of drawn) {
+    assert.equal(get(r, 370), '0', 'lineweight 0 on every vector');
+    assert.equal(get(r, 330), get(model, 5), 'owned by model space');
+  }
+  for (const r of drawn.filter(r => r[0][1] === 'LWPOLYLINE')) {
+    assert.equal(get(r, 70), '1', 'closed');
+    assert.equal(r.filter(p => p[0] === 10).length, Number(get(r, 90)));
   }
 });

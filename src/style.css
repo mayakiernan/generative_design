@@ -102,9 +102,3 @@ footer a{color:#55554e;text-decoration:none;padding:6px 0;font-size:8px;letter-s
 .form-note{font-size:11px;line-height:1.5;color:#81817a;margin:0}
 .run-log{list-style:none;margin:0;padding:10px 12px;background:#f2f2ef;font-size:9px;line-height:1.7;color:#55554e;max-height:180px;overflow:auto}
 
-/* Site tabs */
-.site-tabs{display:flex;gap:32px;border-bottom:1px solid #e3e3dd;margin:0 0 4px}
-.site-tabs a{font:12px 'SFMono-Regular',Consolas,'Liberation Mono',monospace;letter-spacing:.6px;color:#81817a;text-decoration:none;padding:0 0 13px;border-bottom:3px solid transparent;margin-bottom:-1px}
-.site-tabs a:hover{color:#242421}
-.site-tabs a[aria-current=page]{color:#242421;border-bottom-color:#ef531b}
-@media(max-width:700px){.site-tabs{gap:20px}.site-tabs a{font-size:11px}}

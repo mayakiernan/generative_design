@@ -1,0 +1,6 @@
+/* Site tabs: imported by the component, so pages with their own stylesheet (slots) get them too. */
+.site-tabs{display:flex;gap:32px;border-bottom:1px solid #e3e3dd;margin:0 0 4px}
+.site-tabs a{font:12px 'SFMono-Regular',Consolas,'Liberation Mono',monospace;letter-spacing:.6px;color:#81817a;text-decoration:none;padding:0 0 13px;border-bottom:3px solid transparent;margin-bottom:-1px}
+.site-tabs a:hover{color:#242421}
+.site-tabs a[aria-current=page]{color:#242421;border-bottom-color:#ef531b}
+@media(max-width:700px){.site-tabs{gap:20px}.site-tabs a{font-size:11px}}

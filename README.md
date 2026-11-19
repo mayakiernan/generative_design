@@ -92,9 +92,9 @@ vercel deploy --prod
 
 ## Slot constructions (prototype)
 
-`/slots/` has two tabs.
+`/slots/` is the SLOT KITS tab in the site's tab bar (`src/components/SiteTabs.tsx`, next to GENERATOR and MODEL COMPARISON) and has two tabs of its own.
 
-**Kit gallery** (the default). Pick a kit of flat pieces, choose a form (table, random, sculpture, tower, spread, compact), a piece count, piece size and sheet thickness, and the page grows a gallery of designs from that kit. Open one for a 3D build animation, numbered build steps, and laser files: an SVG cut sheet (red cut, blue engrave), a DXF (layers CUT and ENGRAVE) and a printable HTML assembly guide. Each piece is engraved with its number and a letter at each slit, which the build steps refer to.
+**Kit gallery** (the default). Pick a kit of flat pieces, choose a form (table, random, sculpture, tower, spread, compact), a piece count, piece size and sheet thickness, and the page grows a gallery of designs from that kit. Open one for a 3D build animation, numbered build steps, and laser files: an SVG cut sheet (red cut, blue engrave), a DXF (layers CUT in red and ENGRAVE in blue) and a printable HTML assembly guide. Line weights follow the laser lab's rules: cut lines are 0.072 pt in the SVG (0.0254 mm, since 1 SVG unit is 1 mm), and the DXF is R2000 so every vector and both layers can carry lineweight 0 (R12 has no lineweights). The DXF follows the documented minimum for R2000 (the nine tables, model and paper space blocks, the root dictionary); a test checks its structure, handles and owners, but it has not yet been opened in AutoCAD. Each piece is engraved with its number and a letter at each slit, which the build steps refer to.
 
 - Kits (`src/slots/kits.ts`): **Circular**: a disc with 1 slit, 2 slits at 90°, 2 slits at 180°, 3 slits, and a half disc whose two notches are the 180° disc's slits running along its flat edge. **Triangular**: triangles with 1, 2 or 3 midpoint slits and a pinwheel triangle. **Pinwheel**: pentagon, hexagon and decagon with one offset slit per edge.
 - Slits are snug (sheet + clearance), so every joint is a 90° cross. Wider slits would admit other angles but then the joint can rock within them. Even snug, a slit joint only resists turning about its own slit line through contacts one sheet thickness apart, so under load it is a hinge (see *Braced joints* below).

@@ -1,7 +1,8 @@
 /**
- * Laser files. Every panel laid flat at 1 unit = 1 mm, shelf-packed onto a sheet.
- *   SVG: red hairlines cut, blue text engraves (piece numbers, slit numbers).
- *   DXF (R12): outlines on layer CUT as closed polylines, labels on layer ENGRAVE.
+ * Laser files. Every panel laid flat at 1 unit = 1 mm, shelf-packed onto a sheet. Line weights follow the laser lab's
+ * rules: 0.072 pt in Illustrator, 0 in AutoCAD.
+ *   SVG: red 0.072 pt lines cut, blue text engraves (piece numbers, slit numbers).
+ *   DXF (R2000): outlines on layer CUT (red) as closed LWPOLYLINEs, labels on layer ENGRAVE (blue), lineweight 0.
  * The assembly guide is a self-contained HTML page: parts list, the labelled sheet, and the build steps.
  */
 import type {Design} from './engine';
@@ -44,12 +45,15 @@ function nameMarks(d: Design): Mark[] {
   });
 }
 
+/** Illustrator's laser line weight, 0.072 pt, in the SVG's units (1 unit = 1 mm): 0.072 × 25.4 / 72 = 0.0254. */
+export const CUT_STROKE_MM = (0.072 * 25.4) / 72;
+
 const esc = (s: string) => s.replace(/[&<>"]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[ch]!);
 
 export function cutSheetSVG(d: Design, marks: Mark[] = nameMarks(d)): string {
   const {items, width, height} = packSheet(d);
   const byPanel = new Map(items.map(it => [it.id, it]));
-  const cuts = items.map(it => `<path d="${loopPath(it.loops, it.x, it.y)}" fill="none" stroke="#ff0000" stroke-width="0.1"/>`).join('\n');
+  const cuts = items.map(it => `<path d="${loopPath(it.loops, it.x, it.y)}" fill="none" stroke="#ff0000" stroke-width="${CUT_STROKE_MM.toFixed(4)}"/>`).join('\n');
   const text = marks.map(m => {
     const it = byPanel.get(m.panel);
     if (!it) return '';
@@ -69,25 +73,74 @@ ${cuts}
 `;
 }
 
-/** AutoCAD R12 DXF in millimetres: closed POLYLINEs on CUT, TEXT on ENGRAVE (y up, as DXF expects). */
+/**
+ * DXF R2000 (AC1015) in millimetres: closed LWPOLYLINEs on layer CUT (red), TEXT on layer ENGRAVE (blue),
+ * every entity and both layers at lineweight 0 (code 370, hundredths of a millimetre). R12 has no lineweights, so
+ * this follows the documented R2000 minimum (not yet opened in AutoCAD): HEADER ($ACADVER, $HANDSEED), empty CLASSES, the nine tables with their required
+ * entries, the *Model_Space and *Paper_Space blocks, ENTITIES, and OBJECTS with the root dictionary and ACAD_GROUP.
+ * Every object has a handle (5) and its owner's handle (330). y runs up, as DXF expects.
+ */
 export function cutSheetDXF(d: Design, marks: Mark[] = nameMarks(d)): string {
-  const {items, height} = packSheet(d);
+  const {items, width, height} = packSheet(d);
   const byPanel = new Map(items.map(it => [it.id, it]));
-  const out: string[] = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'];
   const n = (v: number) => v.toFixed(3);
+  let next = 1;
+  const handle = () => (next++).toString(16).toUpperCase();
+  const H = {blockRecords: handle(), layers: handle(), styles: handle(), ltypes: handle(), views: handle(), ucs: handle(), vports: handle(), appids: handle(), dimstyles: handle(), model: handle(), paper: handle(), root: handle(), groups: handle()};
+  const out: (string | number)[] = [];
+  const tag = (...pairs: (string | number)[]) => { out.push(...pairs); };
+  const table = (name: string, h: string, entries: () => void, count: number, extra: (string | number)[] = []) => {
+    tag(0, 'TABLE', 2, name, 5, h, 330, 0, 100, 'AcDbSymbolTable', 70, count, ...extra);
+    entries();
+    tag(0, 'ENDTAB');
+  };
+  const record = (type: string, owner: string, subclass: string, name: string, ...rest: (string | number)[]) =>
+    tag(0, type, type === 'DIMSTYLE' ? 105 : 5, handle(), 330, owner, 100, 'AcDbSymbolTableRecord', 100, subclass, 2, name, 70, 0, ...rest);
+  const entities: (string | number)[] = [];
+  const entity = (type: string, layer: string, ...rest: (string | number)[]) => entities.push(0, type, 5, handle(), 330, H.model, 100, 'AcDbEntity', 8, layer, 370, 0, ...rest);
   for (const it of items) for (const loop of it.loops) {
-    out.push('0', 'POLYLINE', '8', 'CUT', '66', '1', '70', '1');
-    for (const q of loop) out.push('0', 'VERTEX', '8', 'CUT', '10', n(q[0] + it.x), '20', n(height - (q[1] + it.y)));
-    out.push('0', 'SEQEND', '8', 'CUT');
+    entity('LWPOLYLINE', 'CUT', 100, 'AcDbPolyline', 90, loop.length, 70, 1, ...loop.flatMap(q => [10, n(q[0] + it.x), 20, n(height - (q[1] + it.y))]));
   }
   for (const m of marks) {
     const it = byPanel.get(m.panel);
     if (!it) continue;
     const [x, y] = onSheet(it, m.at);
-    out.push('0', 'TEXT', '8', 'ENGRAVE', '10', n(x), '20', n(height - y), '40', n(m.size * 0.7), '1', m.text, '72', '1', '11', n(x), '21', n(height - y));
+    // Centred on the point both ways (72 = 1 centre, 73 = 2 middle), as the SVG's text is.
+    entity('TEXT', 'ENGRAVE', 100, 'AcDbText', 10, n(x), 20, n(height - y), 30, 0, 40, n(m.size * 0.7), 1, m.text, 72, 1, 11, n(x), 21, n(height - y), 31, 0, 100, 'AcDbText', 73, 2);
   }
-  out.push('0', 'ENDSEC', '0', 'EOF');
-  return out.join('\n') + '\n';
+  const blocks: (string | number)[] = [];
+  for (const [name, owner, paper] of [['*Model_Space', H.model, false], ['*Paper_Space', H.paper, true]] as const) {
+    blocks.push(0, 'BLOCK', 5, handle(), 330, owner, 100, 'AcDbEntity', ...(paper ? [67, 1] : []), 8, 0, 100, 'AcDbBlockBegin', 2, name, 70, 0, 10, 0, 20, 0, 30, 0, 3, name, 1, '');
+    blocks.push(0, 'ENDBLK', 5, handle(), 330, owner, 100, 'AcDbEntity', ...(paper ? [67, 1] : []), 8, 0, 100, 'AcDbBlockEnd');
+  }
+  // Tables, in the order AutoCAD writes them. Entry handles are drawn as they are written.
+  const tables: (string | number)[] = [];
+  const at = out.length;
+  table('VPORT', H.vports, () => {}, 0);
+  table('LTYPE', H.ltypes, () => {
+    for (const [name, text] of [['ByBlock', ''], ['ByLayer', ''], ['Continuous', 'Solid line']]) record('LTYPE', H.ltypes, 'AcDbLinetypeTableRecord', name, 3, text, 72, 65, 73, 0, 40, 0);
+  }, 3);
+  table('LAYER', H.layers, () => {
+    record('LAYER', H.layers, 'AcDbLayerTableRecord', '0', 62, 7, 6, 'Continuous', 370, -3);
+    record('LAYER', H.layers, 'AcDbLayerTableRecord', 'CUT', 62, 1, 6, 'Continuous', 370, 0);
+    record('LAYER', H.layers, 'AcDbLayerTableRecord', 'ENGRAVE', 62, 5, 6, 'Continuous', 370, 0);
+  }, 3);
+  table('STYLE', H.styles, () => record('STYLE', H.styles, 'AcDbTextStyleTableRecord', 'Standard', 40, 0, 41, 1, 50, 0, 71, 0, 42, 2.5, 3, 'txt', 4, ''), 1);
+  table('VIEW', H.views, () => {}, 0);
+  table('UCS', H.ucs, () => {}, 0);
+  table('APPID', H.appids, () => record('APPID', H.appids, 'AcDbRegAppTableRecord', 'ACAD'), 1);
+  table('DIMSTYLE', H.dimstyles, () => record('DIMSTYLE', H.dimstyles, 'AcDbDimStyleTableRecord', 'Standard'), 1, [100, 'AcDbDimStyleTable', 71, 0]);
+  table('BLOCK_RECORD', H.blockRecords, () => {
+    tag(0, 'BLOCK_RECORD', 5, H.model, 330, H.blockRecords, 100, 'AcDbSymbolTableRecord', 100, 'AcDbBlockTableRecord', 2, '*Model_Space');
+    tag(0, 'BLOCK_RECORD', 5, H.paper, 330, H.blockRecords, 100, 'AcDbSymbolTableRecord', 100, 'AcDbBlockTableRecord', 2, '*Paper_Space');
+  }, 2);
+  tables.push(...out.splice(at));
+  const objects = [0, 'DICTIONARY', 5, H.root, 330, 0, 100, 'AcDbDictionary', 281, 1, 3, 'ACAD_GROUP', 350, H.groups,
+    0, 'DICTIONARY', 5, H.groups, 330, H.root, 100, 'AcDbDictionary', 281, 1];
+  const header = [9, '$ACADVER', 1, 'AC1015', 9, '$HANDSEED', 5, next.toString(16).toUpperCase(), 9, '$INSUNITS', 70, 4, 9, '$MEASUREMENT', 70, 1,
+    9, '$EXTMIN', 10, 0, 20, 0, 30, 0, 9, '$EXTMAX', 10, n(width), 20, n(height), 30, 0];
+  const section = (name: string, body: (string | number)[]) => [0, 'SECTION', 2, name, ...body, 0, 'ENDSEC'];
+  return [...section('HEADER', header), ...section('CLASSES', []), ...section('TABLES', tables), ...section('BLOCKS', blocks), ...section('ENTITIES', entities), ...section('OBJECTS', objects), 0, 'EOF'].join('\n') + '\n';
 }
 
 export interface GuideStep {text: string}
@@ -95,7 +148,7 @@ export interface GuideStep {text: string}
 export function assemblyGuideHTML(title: string, d: Design, parts: {name: string; count: number}[], steps: GuideStep[], marks: Mark[]): string {
   const svg = cutSheetSVG(d, marks).replace(/^<\?xml[^>]*>\s*/, '').replace(/width="[^"]*mm" height="[^"]*mm"/, 'width="100%"');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · assembly</title>
-<style>body{font:14px/1.5 Helvetica,Arial,sans-serif;color:#222;max-width:820px;margin:32px auto;padding:0 16px}h1{font-weight:400;font-size:26px;margin:0 0 4px}.muted{color:#777}h2{font-size:15px;margin:28px 0 8px}ol{padding-left:22px}li{margin:6px 0}table{border-collapse:collapse}td{padding:3px 14px 3px 0}.sheet{border:1px solid #ddd;margin-top:8px}.sheet path{fill:#efe9dc}@media print{.sheet{break-inside:avoid}}</style></head><body>
+<style>body{font:14px/1.5 Helvetica,Arial,sans-serif;color:#222;max-width:820px;margin:32px auto;padding:0 16px}h1{font-weight:400;font-size:26px;margin:0 0 4px}.muted{color:#777}h2{font-size:15px;margin:28px 0 8px}ol{padding-left:22px}li{margin:6px 0}table{border-collapse:collapse}td{padding:3px 14px 3px 0}.sheet{border:1px solid #ddd;margin-top:8px}.sheet path{fill:#efe9dc;stroke-width:1px;vector-effect:non-scaling-stroke}@media print{.sheet{break-inside:avoid}}</style></head><body>
 <h1>${esc(title)}</h1>
 <p class="muted">${d.panels.length} pieces · ${d.thickness} mm sheet · slits cut ${(d.thickness + d.clearance).toFixed(2)} mm wide · about ${Math.round(d.size.width)} × ${Math.round(d.size.depth)} × ${Math.round(d.size.height)} mm assembled</p>
 <h2>Parts</h2><table>${parts.map(p => `<tr><td>${p.count} ×</td><td>${esc(p.name)}</td></tr>`).join('')}</table>

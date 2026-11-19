@@ -15,6 +15,7 @@ import {assemblyGuideHTML, cutSheetDXF, cutSheetSVG, loopPath, onSheet, packShee
 import {coverPiece, finishPieces, KITS, type Intent, type KitId, type Piece} from './slots/kits';
 import type {GalleryItem} from './slots/gallery';
 import {FOOTPRINT_X, LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES} from './slots/recipe';
+import {SiteTabs} from './components/SiteTabs';
 import './slots.css';
 
 const SLITS: SlitType[] = ['cross', 'radial', 'edge', 'tab', 'kit'];
@@ -658,6 +659,7 @@ function App() {
   const [tab, setTab] = useState<'kits' | 'panels'>('kits');
   return (
     <main className="slots">
+      <SiteTabs current="slots" />
       <header className="topbar">
         <a className="wordmark" href="../">Possible Pieces</a>
         <nav className="tabs" aria-label="Mode">

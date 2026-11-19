@@ -14,7 +14,8 @@ import {describeHold, type Hold} from './slots/stability';
 import {assemblyGuideHTML, cutSheetDXF, cutSheetSVG, loopPath, onSheet, packSheet, type Mark} from './slots/svg';
 import {coverPiece, finishPieces, KITS, type Intent, type KitId, type Piece} from './slots/kits';
 import type {GalleryItem} from './slots/gallery';
-import {LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES} from './slots/recipe';
+import {FOOTPRINT_X, LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES, VISIBLE_KITS} from './slots/recipe';
+import {SiteTabs} from './components/SiteTabs';
 import './slots.css';
 
 const SLITS: SlitType[] = ['cross', 'radial', 'edge', 'tab', 'kit'];
@@ -424,7 +425,6 @@ function SlitIcon({kind}: {kind: SlitType}) {
 const KIT_FILL: Record<KitId, string> = {circle: '#8082a3', triangle: '#8f9c78', pentagon: '#b4836f', hexagon: '#d2b483', decagon: '#7f9aa6'};
 /** A few close shades of one colour, so neighbouring pieces read apart in 3D. */
 const tints = (hex: string) => [1.12, 1, 1.22, 0.92, 1.06].map(k => `#${new THREE.Color(hex).multiplyScalar(k).getHexString()}`);
-const INTENTS: [Intent, string][] = [['table', 'Table'], ['any', 'Sculpture'], ['tower', 'Tower'], ['spread', 'Spread'], ['compact', 'Compact']];
 const TOP_FILL = '#ece3d0';
 
 /** One kit piece, flat, with its slits. */
@@ -480,8 +480,15 @@ function NumberField({value, min, max, step, onCommit, label}: {value: number; m
   return <input type="number" inputMode="decimal" aria-label={label} min={min} max={max} step={step} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />;
 }
 
-interface GallerySettings {kit: KitId; intent: Intent; count: number; size: number; t: number; clearance: number; favour: string[]; avoid: string[]; branching: 'chain' | 'mixed' | 'bushy' | null}
-const START: GallerySettings = {kit: 'circle', intent: 'table', count: 14, size: 240, t: 6, clearance: 0.2, favour: [], avoid: [], branching: null};
+/** `footprint`: the random form's circle on the floor, as a diameter in piece sizes (so it follows the piece size). */
+interface GallerySettings {kit: KitId; intent: Intent; count: number; size: number; t: number; clearance: number; footprint: number; favour: string[]; avoid: string[]; branching: 'chain' | 'mixed' | 'bushy' | null}
+const START: GallerySettings = {kit: 'circle', intent: 'any', count: 14, size: 240, t: 6, clearance: 0.2, footprint: FOOTPRINT_X.start, favour: [], avoid: [], branching: null};
+/** Briefs to start from: the page has no form buttons, so every set begins as a prompt. */
+const BRIEFS = ['a side table about 50 cm tall', 'something random that fits in a 1 m circle', 'a tall tower of small discs', 'a low, wide centrepiece for a dining table'];
+type StandFilter = 'all' | 'stands' | 'support';
+type ShapeFilter = 'all' | 'upright' | 'low';
+/** Upright: at least as tall as it is wide. */
+const upright = (it: GalleryItem) => it.design.size.height >= Math.max(it.design.size.width, it.design.size.depth);
 
 function KitGallery() {
   const [cfg, setCfg] = useState<GallerySettings>(START);
@@ -495,13 +502,19 @@ function KitGallery() {
   const [asking, setAsking] = useState(false);
   const [ai, setAi] = useState<{recipe: Recipe; model: string} | null>(null);
   const [aiError, setAiError] = useState('');
-  const kitPieces = useMemo(() => Object.fromEntries(KITS.map(k => [k.id, finishPieces(k.id, 100, 4, 0.2)])) as Record<KitId, Piece[]>, []);
-  const covers = useMemo(() => Object.fromEntries(KITS.map(k => [k.id, coverPiece(k.id, 100, 4, 0.2)])) as Record<KitId, Piece>, []);
-  const table = cfg.intent === 'table';
-  const pieceName = (id: string) => Object.values(kitPieces).flat().find(p => p.id === id)?.name ?? id;
+  const [standFilter, setStandFilter] = useState<StandFilter>('all');
+  const [shapeFilter, setShapeFilter] = useState<ShapeFilter>('all');
+  const kit = KITS.find(k => k.id === VISIBLE_KITS[0])!;
+  const kitPieces = useMemo(() => finishPieces(kit.id, 100, 4, 0.2), [kit.id]);
+  const cover = useMemo(() => coverPiece(kit.id, 100, 4, 0.2), [kit.id]);
+  const table = cfg.intent === 'table', random = cfg.intent === 'random';
+  const pieceName = (id: string) => kitPieces.find(p => p.id === id)?.name ?? id;
   const wanted = !table && cfg.count > 16 ? 6 : 9;
+  // Nothing grows until a brief has set the engine up.
+  const ready = ai !== null;
 
   useEffect(() => {
+    if (!ready) return;
     setBusy(true); setItems([]); setNote(''); setOpen(null);
     const w = new Worker(new URL('./slots/galleryWorker.ts', import.meta.url), {type: 'module'});
     w.onmessage = ({data}) => {
@@ -515,84 +528,102 @@ function KitGallery() {
     };
     w.onerror = () => { setBusy(false); setNote('The search stopped unexpectedly.'); w.terminate(); };
     const attempts = table ? 200 : Math.round((cfg.intent === 'tower' ? 160 : 70) * (1 + cfg.count / 12));
-    w.postMessage({kit: cfg.kit, intent: cfg.intent, count: cfg.count, size: cfg.size, t: cfg.t, clearance: cfg.clearance, seed: round, designs: wanted, attempts,
+    w.postMessage({kit: cfg.kit, intent: cfg.intent, count: cfg.count, size: cfg.size, t: cfg.t, clearance: cfg.clearance, footprint: cfg.footprint * cfg.size, seed: round, designs: wanted, attempts, keepFallers: true,
       weights: recipeWeights({favour: cfg.favour as never[], avoid: cfg.avoid as never[]}), branching: cfg.branching ?? undefined});
     return () => w.terminate();
-  }, [cfg, round, wanted, table]);
+  }, [cfg, round, wanted, table, ready]);
 
-  const askClaude = async () => {
-    if (!brief.trim() || asking) return;
+  const askClaude = async (text = brief) => {
+    if (!text.trim() || asking) return;
     setAsking(true); setAiError('');
     try {
-      const res = await fetch('../api/kit-recipe', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({prompt: brief})});
+      const res = await fetch('../api/kit-recipe', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({prompt: text})});
       const data = await res.json().catch(() => ({error: `The server answered ${res.status}.`}));
       if (!res.ok || !data.recipe) throw new Error(data.error ?? `The server answered ${res.status}.`);
       const r = data.recipe as Recipe;
       setAi({recipe: r, model: data.model});
-      setCfg(c => ({...c, kit: r.kit, intent: r.form, count: r.pieces, size: r.pieceSizeMm, t: r.sheetMm, favour: r.favour, avoid: r.avoid, branching: r.branching}));
+      const footprint = Math.min(FOOTPRINT_X.max, Math.max(FOOTPRINT_X.min, Math.round((r.footprintMm / r.pieceSizeMm) * 4) / 4));
+      setCfg(c => ({...c, kit: VISIBLE_KITS[0], intent: r.form, count: r.pieces, size: r.pieceSizeMm, t: r.sheetMm, footprint: r.form === 'random' ? footprint : c.footprint, favour: r.favour, avoid: r.avoid, branching: r.branching}));
+      setStandFilter('all'); setShapeFilter('all');
       setRound(x => x + 1);
     } catch (e) {
       setAiError(e instanceof Error ? e.message : 'Could not reach Claude.');
     } finally { setAsking(false); }
   };
 
+  const shown = items.map((it, i) => ({it, n: i + 1})).filter(({it}) =>
+    (standFilter === 'all' || (standFilter === 'stands') === it.stands) && (shapeFilter === 'all' || (shapeFilter === 'upright') === upright(it)));
+  const count = (f: (it: GalleryItem) => boolean) => items.filter(f).length;
+  const chips = <T extends string>(label: string, value: T, setValue: (v: T) => void, options: [T, string, number][]) => (
+    <div className="kg-filter" role="radiogroup" aria-label={label}>
+      <span className="mono label">{label}</span>
+      {options.map(([id, text, n]) => <button key={id} type="button" role="radio" aria-checked={value === id} className={value === id ? 'on' : ''} onClick={() => setValue(id)}>{text} <span className="muted">{n}</span></button>)}
+    </div>
+  );
+
   return (
     <div className="kg">
       <section className="kg-intro">
         <h1>Slot kits</h1>
-        <p>A kit is one shape at one size: every piece is identical apart from its slits. What forms can one shape make? Choose a kit, or describe what you want and let Claude Opus 5.5 set it up. <b>Table</b> stacks the circles into a grid, layer on layer, and lays the kit's cover (the same shape, no slits, sized up just enough to rest on the grid) on top as the surface; the other forms grow sculptures. Every design is checked before it is shown: nothing overlaps, it builds in order, it stands, nothing can slide out, and a table's joints, which act as hinges about their slit lines, cannot fold under weight on the cover. Open one for its build steps and laser files.</p>
+        <p>Every piece is the same disc, differing only in its slits. Describe what you want, and Claude Opus 5.5 sets up the engine: what to grow, how many pieces, how big. When the design calls for a surface, the engine stacks the discs into a braced grid and sizes a cover to rest on top. Every design is checked before it is shown: nothing overlaps, it builds in order, and nothing can slide out. Most stand on their own; some would need propping, and the filters below sort them. Open one for its build steps and laser files.</p>
       </section>
 
       <form className="ai-brief" onSubmit={e => { e.preventDefault(); askClaude(); }}>
         <label htmlFor="ai-brief" className="mono label">DESCRIBE IT</label>
         <div className="ai-row">
           <input id="ai-brief" value={brief} onChange={e => setBrief(e.target.value)} maxLength={1000} placeholder="e.g. a tall lantern from cardboard discs, about 40 cm" autoComplete="off" />
-          <button type="submit" className="primary" disabled={asking || !brief.trim()}>{asking ? 'Asking Opus 5.5…' : 'Set up with Claude'}</button>
+          <button type="submit" className="primary" disabled={asking || !brief.trim()}>{asking ? 'Asking Opus 5.5…' : 'Generate'}</button>
         </div>
+        {!ready && !asking && <div className="ai-examples">{BRIEFS.map(x => <button key={x} type="button" onClick={() => { setBrief(x); askClaude(x); }}>{x}</button>)}</div>}
         {aiError && <p className="note bad">{aiError}</p>}
         {ai && !aiError && (
           <div className="ai-recipe">
             <b>{ai.recipe.title}</b>
             <span>{ai.recipe.rationale}</span>
-            <span className="muted">{KITS.find(k => k.id === ai.recipe.kit)?.name} kit · {ai.recipe.form === 'table' ? 'table with a cover' : ai.recipe.form} · {ai.recipe.pieces} pieces · every piece {ai.recipe.pieceSizeMm} mm{ai.recipe.form === 'table' ? '' : ` · ${ai.recipe.branching} branching`} · {ai.recipe.sheetMm} mm sheet{ai.recipe.favour.length ? ` · favours ${ai.recipe.favour.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''}{ai.recipe.avoid.length ? ` · leaves out ${ai.recipe.avoid.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''} · set by {ai.model}</span>
+            <span className="muted">{ai.recipe.form === 'table' ? 'table with a cover' : ai.recipe.form === 'random' ? `random, inside a ${ai.recipe.footprintMm} mm circle` : ai.recipe.form === 'any' ? 'sculpture' : ai.recipe.form} · {ai.recipe.pieces} pieces · every disc {ai.recipe.pieceSizeMm} mm{ai.recipe.form === 'table' || ai.recipe.form === 'random' ? '' : ` · ${ai.recipe.branching} branching`} · {ai.recipe.sheetMm} mm sheet{ai.recipe.favour.length ? ` · favours ${ai.recipe.favour.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''}{ai.recipe.avoid.length ? ` · leaves out ${ai.recipe.avoid.map(id => `“${pieceName(id).toLowerCase()}”`).join(' and ')}` : ''} · set by {ai.model}</span>
           </div>
         )}
       </form>
 
-      <div className="kg-kits" role="radiogroup" aria-label="Kit">
-        {KITS.map(k => (
-          <button key={k.id} type="button" role="radio" aria-checked={k.id === cfg.kit} className={`kit-card${k.id === cfg.kit ? ' on' : ''}`} onClick={() => set({kit: k.id, favour: [], avoid: []})}>
-            <span className="kit-pieces">{kitPieces[k.id].map(p => <PieceIcon key={p.id} p={p} fill={KIT_FILL[k.id]} />)}<span className="kit-cover" title="Top"><PieceIcon p={covers[k.id]} fill={TOP_FILL} /></span></span>
-            <b>{k.name}</b>
-            <span>{k.blurb}</span>
-          </button>
-        ))}
+      <div className="kit-card kit-only">
+        <span className="kit-pieces">{kitPieces.map(p => <PieceIcon key={p.id} p={p} fill={KIT_FILL[kit.id]} />)}<span className="kit-cover" title="Cover"><PieceIcon p={cover} fill={TOP_FILL} /></span></span>
+        <b>{kit.name} kit</b>
+        <span>{kit.blurb}</span>
       </div>
 
-      <div className="kg-controls">
-        <div className="seg" role="radiogroup" aria-label="Form">{INTENTS.map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={id === cfg.intent} className={id === cfg.intent ? 'on' : ''} onClick={() => set(id === 'table' ? {intent: id, count: Math.max(cfg.count, TABLE_MIN_PIECES)} : {intent: id})}>{label}</button>)}</div>
-        <label>Pieces <b>{cfg.count}{table ? ' + cover' : ''}</b><input type="range" min={table ? TABLE_MIN_PIECES : LIMITS.pieces[0]} max={LIMITS.pieces[1]} value={cfg.count} onChange={e => set({count: Number(e.target.value)})} /></label>
-        <label>Piece size <span className="unit"><NumberField label="Size of every piece in mm" value={cfg.size} min={LIMITS.pieceSizeMm[0]} max={LIMITS.pieceSizeMm[1]} step={10} onCommit={v => set({size: v})} />mm</span></label>
-        <label>Sheet <span className="unit"><NumberField label="Sheet thickness in mm" value={cfg.t} min={LIMITS.sheetMm[0]} max={LIMITS.sheetMm[1]} step={0.1} onCommit={v => set({t: v})} />mm</span></label>
-        <label>Fit <span className="unit">+<NumberField label="Slit clearance in mm" value={cfg.clearance} min={0} max={1} step={0.05} onCommit={v => set({clearance: v})} />mm</span></label>
-        <button type="button" className="primary" disabled={busy} onClick={() => setRound(x => x + 1)}>{busy ? 'Growing…' : 'New set'}</button>
-      </div>
-      {table && cfg.kit !== 'circle' && <p className="note bad small">Tables need the Circular kit. A table has to stand 1.5 piece sizes tall with joints that cannot fold under a load, and only the discs stack into braced grids: the other kits' offset slits never close a braced loop, so they rarely pass.</p>}
-      <p className="muted small fit-note">Slits are cut sheet + fit wide ({(cfg.t + cfg.clearance).toFixed(2)} mm). Enter your measured sheet thickness, and add your laser's kerf allowance to the fit.</p>
+      {ready && (
+        <div className="kg-controls">
+          <label>Pieces <b>{cfg.count}{table ? ' + cover' : ''}</b><input type="range" min={table ? TABLE_MIN_PIECES : LIMITS.pieces[0]} max={LIMITS.pieces[1]} value={cfg.count} onChange={e => set({count: Number(e.target.value)})} /></label>
+          {random && <label>Footprint <b>⌀ {Math.round(cfg.footprint * cfg.size)} mm</b><input type="range" aria-label="Diameter of the circle on the floor, in piece sizes" min={FOOTPRINT_X.min} max={FOOTPRINT_X.max} step={0.25} value={cfg.footprint} onChange={e => set({footprint: Number(e.target.value)})} /></label>}
+          <label>Piece size <span className="unit"><NumberField label="Size of every piece in mm" value={cfg.size} min={LIMITS.pieceSizeMm[0]} max={LIMITS.pieceSizeMm[1]} step={10} onCommit={v => set({size: v})} />mm</span></label>
+          <label>Sheet <span className="unit"><NumberField label="Sheet thickness in mm" value={cfg.t} min={LIMITS.sheetMm[0]} max={LIMITS.sheetMm[1]} step={0.1} onCommit={v => set({t: v})} />mm</span></label>
+          <label>Fit <span className="unit">+<NumberField label="Slit clearance in mm" value={cfg.clearance} min={0} max={1} step={0.05} onCommit={v => set({clearance: v})} />mm</span></label>
+          <button type="button" className="primary" disabled={busy} onClick={() => setRound(x => x + 1)}>{busy ? 'Growing…' : 'New set'}</button>
+        </div>
+      )}
+      {ready && <p className="muted small fit-note">Slits are cut sheet + fit wide ({(cfg.t + cfg.clearance).toFixed(2)} mm). Enter your measured sheet thickness, and add your laser's kerf allowance to the fit.</p>}
+
+      {ready && items.length > 0 && (
+        <div className="kg-filters">
+          {chips('STANDING', standFilter, setStandFilter, [['all', 'All', items.length], ['stands', 'Stands', count(it => it.stands)], ['support', 'Needs support', count(it => !it.stands)]])}
+          {chips('SHAPE', shapeFilter, setShapeFilter, [['all', 'All', items.length], ['upright', 'Upright', count(upright)], ['low', 'Low', count(it => !upright(it))]])}
+        </div>
+      )}
 
       <div className="kg-grid">
-        {items.map((it, i) => (
+        {shown.map(({it, n}) => (
           <button key={it.id} type="button" className="kg-card" onClick={() => setOpen(it)}>
             <Thumb d={it.design} fill={KIT_FILL[cfg.kit]} top={it.top ? it.design.panels.length - 1 : null} />
             {it.top ? (
-              <span className="kg-card-meta"><b>Table {i + 1}</b><span>{it.design.panels.length - 1} pieces + cover{it.top.coverScale === 1 ? '' : ` (${it.top.coverScale}×)`} · surface {Math.round(it.top.height)} mm up</span><span className="ok">level · {Math.round(it.top.safeFrac * 100)}% supported{isFinite(it.top.loadKg) ? ` · tips past ${it.top.loadKg >= 100 ? '100+' : it.top.loadKg.toFixed(1)} kg` : ''}</span></span>
+              <span className="kg-card-meta"><b>Table {n}</b><span>{it.design.panels.length - 1} pieces + cover{it.top.coverScale === 1 ? '' : ` (${it.top.coverScale}×)`} · surface {Math.round(it.top.height)} mm up</span><span className="ok">level · {Math.round(it.top.safeFrac * 100)}% supported{isFinite(it.top.loadKg) ? ` · tips past ${it.top.loadKg >= 100 ? '100+' : it.top.loadKg.toFixed(1)} kg` : ''}</span></span>
             ) : (
-              <span className="kg-card-meta"><b>Design {i + 1}</b><span>{it.design.panels.length} pieces · {Math.round(it.design.size.height)} mm tall</span><span className="ok">stands · tips at {Math.round(it.design.support.tipDeg)}°</span></span>
+              <span className="kg-card-meta"><b>Design {n}</b><span>{it.design.panels.length} pieces · {Math.round(it.design.size.height)} mm tall{it.footprint ? ` · ⌀ ${Math.ceil(it.footprint.needed)} mm` : ''}</span>{it.stands ? <span className="ok">stands · tips at {Math.round(it.design.support.tipDeg)}°</span> : <span className="warn">needs support · {it.design.support.tipDeg > 0 ? `tips at ${it.design.support.tipDeg.toFixed(1)}°` : 'tips over'}</span>}</span>
             )}
           </button>
         ))}
         {busy && Array.from({length: Math.max(0, wanted - items.length)}, (_, i) => <div key={`s${i}`} className="kg-card skeleton" />)}
       </div>
+      {ready && !busy && items.length > 0 && shown.length === 0 && <p className="note">No designs in this set match both filters.</p>}
       {note && <p className="note">{note}</p>}
       {open && <DesignDetail item={open} index={items.indexOf(open) + 1} fill={KIT_FILL[cfg.kit]} onClose={() => setOpen(null)} />}
     </div>
@@ -612,7 +643,7 @@ function DesignDetail({item, index, fill, onClose}: {item: GalleryItem; index: n
     <div className="kg-detail" role="dialog" aria-modal="true" aria-label={`Design ${index}`} onClick={onClose}>
       <div className="kg-sheet" onClick={e => e.stopPropagation()}>
         <header>
-          <div><h2>{item.top ? 'Table' : 'Design'} {index}</h2><p className="muted">{item.top ? `Cover${item.top.coverScale === 1 ? '' : ` (${item.top.coverScale}× piece size)`} ${Math.round(item.top.height)} mm up, ${Math.round(item.top.safeFrac * 100)}% over its supports · ` : ''}{item.top ? `${d.panels.length - 1} pieces + cover` : `${d.panels.length} pieces`} ·{d.thickness} mm sheet · {Math.round(d.size.width)} × {Math.round(d.size.depth)} × {Math.round(d.size.height)} mm overall</p></div>
+          <div><h2>{item.top ? 'Table' : 'Design'} {index}</h2><p className="muted">{item.stands ? '' : 'Needs support: it tips over standing like this · '}{item.top ? `Cover${item.top.coverScale === 1 ? '' : ` (${item.top.coverScale}× piece size)`} ${Math.round(item.top.height)} mm up, ${Math.round(item.top.safeFrac * 100)}% over its supports · ` : ''}{item.top ? `${d.panels.length - 1} pieces + cover` : `${d.panels.length} pieces`} ·{d.thickness} mm sheet · {Math.round(d.size.width)} × {Math.round(d.size.depth)} × {Math.round(d.size.height)} mm overall</p></div>
           <button type="button" className="close" onClick={onClose} aria-label="Close">×</button>
         </header>
         <div className="kg-body">
@@ -655,6 +686,7 @@ function App() {
   const [tab, setTab] = useState<'kits' | 'panels'>('kits');
   return (
     <main className="slots">
+      <SiteTabs current="slots" />
       <header className="topbar">
         <a className="wordmark" href="../">Possible Pieces</a>
         <nav className="tabs" aria-label="Mode">

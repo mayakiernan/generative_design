@@ -16,9 +16,9 @@
  * test) and its straight slide into place is clear of everything already built, so the growth order is itself
  * a verified build order.
  */
-import {add, norm, scale, sub, type Rng, type V2, type V3} from './math';
+import {add, cross, dot, norm, scale, sub, type Rng, type V2, type V3} from './math';
 import {circle, makePanel, panelVertices, regular, truncate, type Panel} from './panel';
-import {convexOverlap, rayHit} from './poly2d';
+import {convexHull, convexOverlap, enclosingCircle, rayHit} from './poly2d';
 import {exitDistance, panelDepth, pathBlocker} from './collide';
 import {compose, frameOf, IDENTITY, restingPose, rotate, type Xf} from './kit';
 import {massProps, partHold} from './stability';
@@ -161,7 +161,7 @@ export function childFrame(FP: Xf, P: Piece, i: number, Q: Piece, j: number, psi
 
 /* ---------- growth ---------- */
 
-export type Intent = 'any' | 'tower' | 'spread' | 'compact' | 'table';
+export type Intent = 'any' | 'tower' | 'spread' | 'compact' | 'table' | 'random';
 
 export interface Grown {
   types: string[];
@@ -176,6 +176,19 @@ export type Branching = 'chain' | 'mixed' | 'bushy';
 /** How a recipe steers growth: relative weight per piece type (0 = never use) and branching style. */
 export interface Steer {weights?: Record<string, number>; branching?: Branching}
 
+/**
+ * A random design's limit. Seen down `up`, every piece stays inside a circle of this radius; and no piece reaches
+ * below the first piece's lowest point along `up`, so the design grows up from a floor and comes out with its feet
+ * on that floor.
+ */
+export interface Footprint {up: V3; radius: number}
+
+/** Panel corners seen down `up`, as coordinates in the plane across it. */
+export function planPoints(panels: Panel[], up: V3): V2[] {
+  const e1 = norm(Math.abs(up[2]) < 0.9 ? cross(up, [0, 0, 1]) : cross(up, [1, 0, 0])), e2 = cross(up, e1);
+  return panels.flatMap(panelVertices).map(v => [dot(v, e1), dot(v, e2)] as V2);
+}
+
 /** Weighted pick; falls back to uniform when every weight is zero. */
 function weighted<T extends {id: string}>(xs: T[], w: Record<string, number> | undefined, r: Rng): T {
   const ws = xs.map(x => Math.max(0, w?.[x.id] ?? 1)), sum = ws.reduce((a, b) => a + b, 0);
@@ -185,16 +198,25 @@ function weighted<T extends {id: string}>(xs: T[], w: Record<string, number> | u
   return xs[xs.length - 1];
 }
 
-export function grow(pieces: Piece[], count: number, intent: Intent, t: number, r: Rng, steer: Steer = {}): Grown | null {
+/**
+ * Tree growth. `within` keeps the design above a floor and inside a circle on it: the smallest circle round every
+ * piece placed so far, seen down `up`, may not grow past the radius, wherever that circle's centre ends up.
+ */
+export function grow(pieces: Piece[], count: number, intent: Intent, t: number, r: Rng, steer: Steer = {}, within?: Footprint): Grown | null {
   const byId = new Map(pieces.map(p => [p.id, p]));
   const allowed = pieces.filter(p => (steer.weights?.[p.id] ?? 1) > 0);
   const growers = (allowed.length ? allowed : pieces).filter(p => p.slits.length >= 2);
   if (!growers.length) return null;
-  const branching: Branching = steer.branching ?? (intent === 'tower' ? 'chain' : intent === 'compact' ? 'bushy' : 'mixed');
+  // Random designs draw their branching style too, whatever a recipe asked for.
+  const branching: Branching = intent === 'random' ? r.pick<Branching>(['chain', 'mixed', 'bushy']) : steer.branching ?? (intent === 'tower' ? 'chain' : intent === 'compact' ? 'bushy' : 'mixed');
   const start = weighted(growers, steer.weights, r);
   const g: Grown = {types: [start.id], X: [IDENTITY], joints: [], travel: [null], panels: [makePanel(0, '1', 'module', start.outline, frameOf(IDENTITY), t, start.cuts)]};
   const free: Set<number>[] = [new Set(start.slits.map((_, k) => k))];
-  for (let tries = 0; g.X.length < count && tries < count * 60; tries++) {
+  let plan = within ? convexHull(planPoints(g.panels, within.up)) : [];
+  const floor = within ? Math.min(...panelVertices(g.panels[0]).map(v => dot(v, within.up))) - 1e-6 : 0;
+  // Inside a circle growth often runs out of room: stop once 150 tries in a row place nothing.
+  let placedAt = 0;
+  for (let tries = 0; g.X.length < count && tries < count * 60 && !(within && tries - placedAt > 150); tries++) {
     const open = free.map((f, k) => (f.size ? k : -1)).filter(k => k >= 0);
     if (!open.length) break;
     // Towers extend the newest piece (chains); compact designs fill the oldest first (bushes).
@@ -206,6 +228,9 @@ export function grow(pieces: Piece[], count: number, intent: Intent, t: number, 
     if (weakJoint(P, kind)) continue;
     const X = childFrame(g.X[at], P, i, kind, j, psi);
     const panel = makePanel(g.X.length, String(g.X.length + 1), 'module', kind.outline, frameOf(X), t, kind.cuts);
+    const nextPlan = within ? convexHull([...plan, ...planPoints([panel], within.up)]) : plan;
+    // Below the floor or past the circle: sometimes give up on that slit, so growth turns to slits with room.
+    if (within && (panelVertices(panel).some(v => dot(v, within.up) < floor) || enclosingCircle(nextPlan).r > within.radius)) { if (r.next() < 0.3) free[at].delete(i); continue; }
     if (g.panels.some(q => panelDepth(panel, q) > 0)) continue;
     const dir = rotate(g.X[at], [P.slits[i].d[0], P.slits[i].d[1], 0]), back = scale(dir, -1);
     if (pathBlocker(panel, scale(back, exitDistance(panel, g.panels, back)), g.panels) !== null) continue;
@@ -213,8 +238,10 @@ export function grow(pieces: Piece[], count: number, intent: Intent, t: number, 
     free.push(new Set(kind.slits.map((_, k) => k).filter(k => k !== j)));
     g.joints.push({child: g.X.length, parent: at, childSlit: j, parentSlit: i});
     g.types.push(kind.id); g.X.push(X); g.travel.push(dir); g.panels.push(panel);
+    plan = nextPlan; placedAt = tries;
   }
-  return g.X.length >= Math.max(3, Math.ceil(count * 0.75)) ? g : null;
+  // A design grown in a circle may stop short; the gallery still holds it to three quarters of the count it wants.
+  return g.X.length >= Math.max(3, Math.ceil(count * (within ? 0.625 : 0.75))) ? g : null;
 }
 
 /**
@@ -350,17 +377,29 @@ function principalAxes(pts: V3[]): {major: V3; minor: V3} {
   return {major, minor};
 }
 
-/** Stand the design on its convex hull: towers on the face across their long axis, the rest on whichever tips last. */
-export function standUp(g: Grown, intent: Intent): {tipDeg: number} | null {
+/**
+ * Stand the design on its convex hull: towers on the face across their long axis, the rest on whichever tips last.
+ * With `up`, a face within 15° of across it if one stands (a random design on the floor it grew from), else the
+ * steadiest face. With `orFall`, a design with no such face that stands is still set on the best of them, its
+ * intended pose (a tower upright), and comes back marked `fell`: shown that way it needs propping.
+ */
+export function standUp(g: Grown, intent: Intent, up?: V3, orFall = false): {tipDeg: number; R: number[]; fell?: boolean} | null {
   const pts = g.panels.flatMap(panelVertices), {com} = massProps(g.panels);
   // Towers stand on their long axis; spreads lie down on their thinnest direction; others take the steadiest face.
   const ax = intent === 'spread' ? principalAxes(pts) : null;
   // A tower grows as a chain, so its axis runs from the first piece to the last.
   const chainAxis = norm(sub(g.panels[g.panels.length - 1].frame.o, g.panels[0].frame.o));
-  const rest = restingPose(pts, com, ax || intent === 'tower' ? {axis: intent === 'tower' ? chainAxis : ax!.minor, maxTiltDeg: intent === 'tower' ? 35 : 40} : undefined);
-  if (!(rest.tipDeg > 4)) return null;
+  const intended = restingPose(pts, com, up ? {axis: up, maxTiltDeg: 15} : ax || intent === 'tower' ? {axis: intent === 'tower' ? chainAxis : ax!.minor, maxTiltDeg: intent === 'tower' ? 35 : 40} : undefined);
+  let rest = intended;
+  // A random design that will not stand on its floor turns to its steadiest face, unless it may be shown falling.
+  if (up && !(rest.tipDeg > 4) && !(orFall && Number.isFinite(intended.tipDeg))) rest = restingPose(pts, com);
+  if (!(rest.tipDeg > 4)) {
+    if (!orFall || !Number.isFinite(intended.tipDeg)) return null;
+    repose(g, intended.R);
+    return {tipDeg: intended.tipDeg, R: intended.R, fell: true};
+  }
   repose(g, rest.R);
-  return {tipDeg: rest.tipDeg};
+  return {tipDeg: rest.tipDeg, R: rest.R};
 }
 
 /** Rotate a grown design by R about the origin, then set it on the floor (lowest point z = 0), centred. */

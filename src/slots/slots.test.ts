@@ -242,7 +242,7 @@ test('every kit fills a gallery with verified designs, and each exports cut file
       const svg = cutSheetSVG(d, it.marks), dxf = cutSheetDXF(d, it.marks), html = assemblyGuideHTML('t', d, it.parts, it.steps, it.marks);
       assert.equal((svg.match(/<path /g) ?? []).length, d.panels.length);
       assert.equal((svg.match(/<text /g) ?? []).length, it.marks.length);
-      assert.equal((dxf.match(/\nPOLYLINE\n/g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0));
+      assert.equal((dxf.match(/\nLWPOLYLINE\n/g) ?? []).length, d.panels.reduce((s, p) => s + p.loops.length, 0));
       assert.ok(dxf.startsWith('0\nSECTION') && dxf.trimEnd().endsWith('EOF'));
       assert.ok(it.steps.every(st => html.includes(st.text.replace(/&/g, '&amp;'))));
     }
@@ -278,10 +278,11 @@ test('30-piece kit designs verify after loose end pieces are pruned', () => {
 });
 
 test('recipes are clamped to what the generator supports', () => {
-  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
+  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, footprintMm: 5000, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
   const k = clampRecipe(r);
   assert.equal(k.pieces, 30);
   assert.equal(k.pieceSizeMm, 40);
+  assert.equal(k.footprintMm, 8 * 40, 'the footprint circle is held to 2–8 piece sizes');
   assert.equal(k.sheetMm, 2.7);
   assert.ok(!k.favour.includes('P6' as never), 'pieces from another kit are dropped');
   assert.ok(['C2L', 'C2I', 'C3T', 'H'].some(id => !k.avoid.includes(id as never)), 'a growing piece is always left');
@@ -356,4 +357,110 @@ test('no design pairs two half discs notch to notch', () => {
     for (const j of g.joints) { joints++; assert.ok(!(g.types[j.child] === 'H' && g.types[j.parent] === 'H'), `H–H joint in seed ${s}`); }
   }
   assert.ok(joints > 0);
+});
+
+/* ---------- random form: no target shape, inside a circle on the floor ---------- */
+
+import {enclosingCircle} from './poly2d';
+import {planDiameter} from './gallery';
+
+test('smallest enclosing circle: two points set it, or three on its rim', () => {
+  const sq = enclosingCircle([[0, 0], [2, 0], [2, 2], [0, 2], [1, 1]]);
+  assert.ok(Math.abs(sq.r - Math.SQRT2) < 1e-9 && Math.abs(sq.c[0] - 1) < 1e-9 && Math.abs(sq.c[1] - 1) < 1e-9);
+  const obtuse = enclosingCircle([[-3, 0], [3, 0], [0, 1]]);
+  assert.ok(Math.abs(obtuse.r - 3) < 1e-9, 'an obtuse triangle is held by the circle on its long side');
+  const acute = enclosingCircle([[-1, 0], [1, 0], [0, 1.5]]);
+  assert.ok(Math.abs(Math.hypot(acute.c[0] + 1, acute.c[1]) - acute.r) < 1e-9 && Math.abs(Math.hypot(acute.c[0], acute.c[1] - 1.5) - acute.r) < 1e-9);
+});
+
+test('random designs fit inside their footprint circle and pass every check', () => {
+  for (const [kit, size, limit] of [['circle', 200, 800], ['hexagon', 160, 480]] as const) {
+    const items = [...gallery({kit, intent: 'random', count: 10, size, t: 4, clearance: c, seed: 1, designs: 3, attempts: 60, footprint: limit})].filter((x): x is GalleryItem => 'design' in x);
+    assert.ok(items.length >= 2, `${kit}: ${items.length} random designs`);
+    for (const it of items) {
+      const d = it.design;
+      assert.ok(d.ok, d.checks.filter(x => x.level === 'error').map(x => x.label).join(', '));
+      assert.ok(planDiameter(d.panels) <= limit + 0.5 && it.footprint!.needed <= limit + 0.5, `${kit}: plan ${planDiameter(d.panels).toFixed(0)} mm in a ${limit} mm circle`);
+      assert.equal(d.checks.find(x => x.label === 'Footprint')?.level, 'ok');
+      assert.ok(d.panels.length >= Math.ceil(0.75 * 10) && d.panels.length <= 10);
+    }
+  }
+});
+
+/* ---------- laser files: the lab's line weights ---------- */
+
+import {CUT_STROKE_MM} from './svg';
+
+test('cut files carry the laser line weights: 0.072 pt in the SVG, lineweight 0 in a well-formed R2000 DXF', () => {
+  const it = [...gallery({kit: 'circle', intent: 'any', count: 6, size: 150, t: 4, clearance: c, seed: 1, designs: 1, attempts: 40})].find((x): x is GalleryItem => 'design' in x)!;
+  const svg = cutSheetSVG(it.design, it.marks);
+  // 1 SVG unit is 1 mm, so the stroke is 0.072 pt written in millimetres.
+  assert.ok(/width="[\d.]+mm"/.test(svg) && Math.abs(CUT_STROKE_MM * (72 / 25.4) - 0.072) < 1e-12);
+  assert.ok([...svg.matchAll(/stroke-width="([\d.]+)"/g)].every(m => Math.abs(Number(m[1]) - 0.0254) < 1e-9));
+
+  const dxf = cutSheetDXF(it.design, it.marks).split('\n');
+  assert.equal(dxf.pop(), '');
+  assert.equal(dxf.length % 2, 0, 'code/value pairs');
+  const pairs: [number, string][] = [];
+  for (let i = 0; i < dxf.length; i += 2) pairs.push([Number(dxf[i]), dxf[i + 1]]);
+  assert.ok(pairs.every(([code]) => Number.isInteger(code)));
+  // Records: each starts at a code 0.
+  const records: [number, string][][] = [];
+  for (const p of pairs) { if (p[0] === 0) records.push([p]); else records[records.length - 1].push(p); }
+  const get = (r: [number, string][], code: number) => r.find(p => p[0] === code)?.[1];
+  const sections = records.filter(r => r[0][1] === 'SECTION').map(r => get(r, 2));
+  assert.deepEqual(sections, ['HEADER', 'CLASSES', 'TABLES', 'BLOCKS', 'ENTITIES', 'OBJECTS']);
+  assert.equal(records[records.length - 1][0][1], 'EOF');
+  const header = records[0];
+  assert.equal(header[header.findIndex(p => p[1] === '$ACADVER') + 1][1], 'AC1015');
+  const seed = parseInt(header[header.findIndex(p => p[1] === '$HANDSEED') + 1][1], 16);
+  // Every object has a unique handle below $HANDSEED, and every owner (330) is a handle in the file or 0.
+  const handles = records.filter(r => r[0][1] !== 'SECTION' && r[0][1] !== 'ENDSEC' && r[0][1] !== 'ENDTAB' && r[0][1] !== 'EOF').map(r => get(r, r[0][1] === 'DIMSTYLE' ? 105 : 5));
+  assert.ok(handles.every(h => h !== undefined), 'every object has a handle');
+  assert.equal(new Set(handles).size, handles.length);
+  assert.ok(handles.every(h => parseInt(h!, 16) < seed));
+  const known = new Set(handles);
+  assert.ok(records.every(r => { const o = get(r, 330); return o === undefined || o === '0' || known.has(o); }));
+  const tables = records.filter(r => r[0][1] === 'TABLE').map(r => get(r, 2));
+  assert.deepEqual(tables, ['VPORT', 'LTYPE', 'LAYER', 'STYLE', 'VIEW', 'UCS', 'APPID', 'DIMSTYLE', 'BLOCK_RECORD']);
+  const named = (type: string) => records.filter(r => r[0][1] === type).map(r => get(r, 2));
+  assert.deepEqual(named('LTYPE'), ['ByBlock', 'ByLayer', 'Continuous']);
+  assert.deepEqual(named('BLOCK_RECORD'), ['*Model_Space', '*Paper_Space']);
+  assert.deepEqual(named('BLOCK'), ['*Model_Space', '*Paper_Space']);
+  const layer = (name: string) => records.find(r => r[0][1] === 'LAYER' && get(r, 2) === name)!;
+  assert.equal(get(layer('CUT'), 62), '1', 'cut layer red');
+  assert.equal(get(layer('ENGRAVE'), 62), '5', 'engrave layer blue');
+  assert.equal(get(layer('CUT'), 370), '0');
+  assert.equal(get(layer('ENGRAVE'), 370), '0');
+  const drawn = records.filter(r => r[0][1] === 'LWPOLYLINE' || r[0][1] === 'TEXT');
+  const model = records.find(r => r[0][1] === 'BLOCK_RECORD' && get(r, 2) === '*Model_Space')!;
+  assert.equal(drawn.length, it.design.panels.reduce((s, p) => s + p.loops.length, 0) + it.marks.length);
+  for (const r of drawn) {
+    assert.equal(get(r, 370), '0', 'lineweight 0 on every vector');
+    assert.equal(get(r, 330), get(model, 5), 'owned by model space');
+  }
+  for (const r of drawn.filter(r => r[0][1] === 'LWPOLYLINE')) {
+    assert.equal(get(r, 70), '1', 'closed');
+    assert.equal(r.filter(p => p[0] === 10).length, Number(get(r, 90)));
+  }
+});
+
+/* ---------- designs that need propping, and the circle-only page ---------- */
+
+test('with keepFallers, up to a third of the designs may need propping; their only failed check is Stands', () => {
+  const opts = {kit: 'circle', intent: 'tower', count: 14, size: 240, t: 6, clearance: c, seed: 1, designs: 9, attempts: 300} as const;
+  const items = [...gallery({...opts, keepFallers: true})].filter((x): x is GalleryItem => 'design' in x);
+  const fallers = items.filter(it => !it.stands);
+  assert.ok(fallers.length >= 1 && fallers.length <= 3, `${fallers.length} of ${items.length} need support`);
+  for (const it of fallers) assert.deepEqual(it.design.checks.filter(x => x.level === 'error').map(x => x.label), ['Stands']);
+  for (const it of items.filter(it => it.stands)) assert.ok(it.design.ok && it.design.support.tipDeg > 4);
+  const strict = [...gallery({...opts, designs: 4, attempts: 300})].filter((x): x is GalleryItem => 'design' in x);
+  assert.ok(strict.length > 0 && strict.every(it => it.stands && it.design.ok), 'without keepFallers every design stands');
+});
+
+test('recipes are held to the kits the page shows', () => {
+  const r: Recipe = {kit: 'hexagon', form: 'any', pieces: 10, pieceSizeMm: 200, footprintMm: 800, sheetMm: 4, favour: ['P6'], avoid: [], branching: 'mixed', title: 'x', rationale: 'y'};
+  const k = clampRecipe(r);
+  assert.equal(k.kit, 'circle');
+  assert.deepEqual(k.favour, [], 'pieces of a hidden kit are dropped');
 });

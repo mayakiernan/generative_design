@@ -5,6 +5,7 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #e953
 .mono{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-size:10px;letter-spacing:.3px}
 .muted{color:#777}
 .slots{max-width:1440px;margin:auto;padding:40px 56px 64px}
+.slots .site-tabs{margin-bottom:28px}
 .slots .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 .wordmark{font-size:21px;font-weight:700;letter-spacing:-.8px;text-decoration:none;color:inherit}
 .slots-intro{margin:48px 0 32px;max-width:760px}
@@ -98,6 +99,17 @@ aside form .label{margin-top:0}
 .kit-card b{font-size:15px;font-weight:400;color:#242421}
 .kit-card:hover{border-color:#cfcdc5}
 .kit-card.on{border-color:#e95319;box-shadow:0 0 0 1px #e95319 inset}
+.kit-only{max-width:420px;margin:0 0 6px}
+.ai-examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ai-examples button{border:1px solid #e4e3dd;background:#fff;border-radius:999px;padding:6px 12px;font-size:12.5px;color:#55554f;cursor:pointer}
+.ai-examples button:hover{border-color:#e95319;color:#e95319}
+.kg-filters{display:flex;flex-wrap:wrap;gap:12px 28px;margin:0 0 16px}
+.kg-filter{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.kg-filter .label{margin:0 4px 0 0}
+.kg-filter button{border:1px solid #e4e3dd;background:#fff;border-radius:999px;padding:5px 11px;font-size:12px;color:#55554f;cursor:pointer}
+.kg-filter button.on{border-color:#e95319;background:#fdf1ec;color:#e95319}
+.kg-filter button .muted{margin-left:3px}
+.kg-card-meta .warn{color:#b0560f}
 .kit-pieces{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 .piece-icon{width:38px;height:38px}
 .kg-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 26px;margin:22px 0 22px;font-size:12px;color:#66655f}
@@ -154,6 +166,8 @@ button.primary{border:1px solid #e95319;background:#e95319;color:#fff;border-rad
 .kg-controls .unit input{width:72px}
 .fit-note{margin:-10px 0 18px !important}
 @media (max-width:760px){.ai-row{flex-direction:column}}
+/* Six forms: two rows of three on a phone, so none is cut off. */
+@media (max-width:760px){.kg-controls .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}.kg-controls .seg button{padding:9px 6px}.kg-controls .seg button:nth-child(3n){border-right:0}.kg-controls .seg button:nth-child(-n+3){border-bottom:1px solid #e4e3dd}}
 
 /* ---------- tables ---------- */
 .kit-cover{display:inline-flex;padding-left:8px;margin-left:2px;border-left:1px solid #eceae4}

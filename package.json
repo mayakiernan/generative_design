@@ -10,7 +10,8 @@
     "test": "node --import tsx --test src/engine/*.test.ts src/hubs/*.test.ts src/slots/*.test.ts scripts/*.test.ts",
     "compare": "node --env-file-if-exists=.env.local --import tsx scripts/compare.ts",
     "check": "tsc -b && tsc -p tsconfig.scripts.json",
-    "hubs": "node --import tsx scripts/hubs.ts"
+    "hubs": "node --import tsx scripts/hubs.ts",
+    "kit-sheet": "node --import tsx scripts/kit-sheet.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.9.0",

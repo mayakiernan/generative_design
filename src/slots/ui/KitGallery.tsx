@@ -9,7 +9,7 @@ import {coverPiece, finishPieces, KITS, type Intent, type KitId, type Piece} fro
 import type {CoverSpec, GalleryItem} from '../gallery';
 import {buildDesign, type DesignSpec} from '../agent';
 import {FOOTPRINT_X, LIMITS, recipeWeights, type Recipe, TABLE_MIN_PIECES, VISIBLE_KITS} from '../recipe';
-import {CutSheet, download, Scene} from './shared';
+import {CutSheet, download, NumberField, Scene} from './shared';
 
 /* ---------- kit gallery ---------- */
 
@@ -58,18 +58,6 @@ function Thumb({d, fill, top = null}: {d: Design; fill: string; top?: number | n
   );
 }
 
-/** Number input that lets you type freely and only clamps and commits on blur or Enter. */
-function NumberField({value, min, max, step, onCommit, label}: {value: number; min: number; max: number; step: number; onCommit: (v: number) => void; label: string}) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  const commit = () => {
-    const v = Number(draft);
-    const next = Number.isFinite(v) && draft.trim() !== '' ? Math.min(max, Math.max(min, v)) : value;
-    setDraft(String(next));
-    if (next !== value) onCommit(next);
-  };
-  return <input type="number" inputMode="decimal" aria-label={label} min={min} max={max} step={step} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }} />;
-}
 
 /**
  * What a set grows from. `footprint`: the random form's circle on the floor, as a diameter in piece sizes (so it

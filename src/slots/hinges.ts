@@ -20,9 +20,9 @@
  * mid-planes meet along a line that runs inside both outlines for more than a sheet thickness. Since they do not
  * overlap (checked elsewhere), they must pass through each other's slits there.
  */
-import {add, cross, dot, norm, sub, type V2, type V3} from './math';
-import {panelArea, panelCentroid, panelVertices, toLocal, type Frame, type Panel} from './panel';
-import {convexHull} from './poly2d';
+import {add, cross, dot, norm, sub, type V2, type V3} from './math.js';
+import {panelArea, panelCentroid, panelVertices, toLocal, type Frame, type Panel} from './panel.js';
+import {convexHull} from './poly2d.js';
 
 /** What the check needs of a piece; engine output panels qualify too. Kit outlines are convex, so the hull of the
  * material is the outline with its slit mouths bridged. */

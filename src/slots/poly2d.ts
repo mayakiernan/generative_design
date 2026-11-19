@@ -7,7 +7,7 @@
  * where Hᵢ is the inner half-plane of C's i-th edge and H̄ₖ its complement. So the material stays an exact
  * convex partition through any number of cuts, which is what the 3D separating-axis test needs.
  */
-import {cross2, dot2, len2, sub2, type V2} from './math';
+import {cross2, dot2, len2, sub2, type V2} from './math.js';
 
 export const TOL = 1e-7;
 

@@ -10,8 +10,8 @@
  * {faces of P} ∪ {e × w : e an edge of P} and its edges in {edges of P} ∪ {w}, so the same test decides whether
  * a straight insertion path is clear. This is exact, not sampled.
  */
-import {add, cross, dot, type V3} from './math';
-import {toWorld, type Panel} from './panel';
+import {add, cross, dot, type V3} from './math.js';
+import {toWorld, type Panel} from './panel.js';
 
 export interface Solid {v: V3[]; f: V3[]; e: V3[]; lo: V3; hi: V3}
 

@@ -16,12 +16,12 @@
  * test) and its straight slide into place is clear of everything already built, so the growth order is itself
  * a verified build order.
  */
-import {add, cross, dot, norm, scale, sub, type Rng, type V2, type V3} from './math';
-import {circle, makePanel, panelVertices, regular, truncate, type Panel} from './panel';
-import {convexHull, convexOverlap, enclosingCircle, rayHit} from './poly2d';
-import {exitDistance, panelDepth, pathBlocker} from './collide';
-import {compose, frameOf, IDENTITY, restingPose, rotate, type Xf} from './kit';
-import {massProps, partHold} from './stability';
+import {add, cross, dot, norm, scale, sub, type Rng, type V2, type V3} from './math.js';
+import {circle, makePanel, panelVertices, regular, truncate, type Panel} from './panel.js';
+import {convexHull, convexOverlap, enclosingCircle, rayHit} from './poly2d.js';
+import {exitDistance, panelDepth, pathBlocker} from './collide.js';
+import {compose, frameOf, IDENTITY, restingPose, rotate, type Xf} from './kit.js';
+import {massProps, partHold} from './stability.js';
 
 export interface Slit {e: V2; d: V2}
 export interface PieceType {
@@ -184,7 +184,7 @@ export interface Steer {weights?: Record<string, number>; branching?: Branching}
 export interface Footprint {up: V3; radius: number}
 
 /** Panel corners seen down `up`, as coordinates in the plane across it. */
-export function planPoints(panels: Panel[], up: V3): V2[] {
+function planPoints(panels: Panel[], up: V3): V2[] {
   const e1 = norm(Math.abs(up[2]) < 0.9 ? cross(up, [0, 0, 1]) : cross(up, [1, 0, 0])), e2 = cross(up, e1);
   return panels.flatMap(panelVertices).map(v => [dot(v, e1), dot(v, e2)] as V2);
 }
@@ -242,127 +242,6 @@ export function grow(pieces: Piece[], count: number, intent: Intent, t: number, 
   }
   // A design grown in a circle may stop short; the gallery still holds it to three quarters of the count it wants.
   return g.X.length >= Math.max(3, Math.ceil(count * (within ? 0.625 : 0.75))) ? g : null;
-}
-
-/**
- * Box-filling growth: grow a tree as usual, but keep a piece only if it stays inside a box around the first piece
- * (half-width `half` across, half-height `halfH` up and down). Filling a box several pieces wide and a few layers
- * tall turns the tree into a stacked grid. With slits at right angles (the circle kit) every piece ends up
- * lying flat or standing upright, so all the upright pieces of the top layer reach exactly one height and all those
- * of the bottom layer stand on one plane: the top and the feet come out level without being forced.
- */
-export function growBoxed(pieces: Piece[], count: number, t: number, r: Rng, half: number, halfH: number, steer: Steer = {}): Grown | null {
-  const byId = new Map(pieces.map(p => [p.id, p]));
-  const allowed = pieces.filter(p => (steer.weights?.[p.id] ?? 1) > 0 && p.slits.length >= 1);
-  const growers = allowed.filter(p => p.slits.length >= 2);
-  if (!growers.length) return null;
-  const start = weighted(growers, steer.weights, r);
-  const g: Grown = {types: [start.id], X: [IDENTITY], joints: [], travel: [null], panels: [makePanel(0, '1', 'module', start.outline, frameOf(IDENTITY), t, start.cuts)]};
-  const free: Set<number>[] = [new Set(start.slits.map((_, k) => k))];
-  const inside = (p: Panel) => panelVertices(p).every(v => Math.abs(v[0]) <= half && Math.abs(v[1]) <= half && Math.abs(v[2]) <= halfH);
-  for (let tries = 0; g.X.length < count && tries < count * 60; tries++) {
-    const open = free.map((f, k) => (f.size ? k : -1)).filter(k => k >= 0);
-    if (!open.length) break;
-    // Fill outward from the oldest pieces first, so the box fills as a grid rather than a long arm.
-    const at = r.next() < 0.7 ? open[Math.floor(r.next() * Math.min(open.length, 3))] : r.pick(open);
-    const P = byId.get(g.types[at])!, i = r.pick([...free[at]]);
-    const kind = r.next() < 0.15 ? weighted(allowed, steer.weights, r) : weighted(growers, steer.weights, r);
-    const j = r.int(0, kind.slits.length - 1), psi = r.pick([Math.PI / 2, (3 * Math.PI) / 2]);
-    if (weakJoint(P, kind)) continue;
-    const X = childFrame(g.X[at], P, i, kind, j, psi);
-    const panel = makePanel(g.X.length, String(g.X.length + 1), 'module', kind.outline, frameOf(X), t, kind.cuts);
-    if (!inside(panel)) { if (r.next() < 0.3) free[at].delete(i); continue; }
-    if (g.panels.some(q => panelDepth(panel, q) > 0)) continue;
-    const dir = rotate(g.X[at], [P.slits[i].d[0], P.slits[i].d[1], 0]), back = scale(dir, -1);
-    if (pathBlocker(panel, scale(back, exitDistance(panel, g.panels, back)), g.panels) !== null) continue;
-    free[at].delete(i);
-    free.push(new Set(kind.slits.map((_, k) => k).filter(k => k !== j)));
-    g.joints.push({child: g.X.length, parent: at, childSlit: j, parentSlit: i});
-    g.types.push(kind.id); g.X.push(X); g.travel.push(dir); g.panels.push(panel);
-  }
-  return g.X.length >= Math.max(4, Math.ceil(count * 0.6)) ? g : null;
-}
-
-/** Turns of a piece about its centre that map its slit set onto itself (k-fold symmetry), as slit-index steps. */
-export function slitSymmetry(p: Piece): {k: number; step: number}[] {
-  const n = p.slits.length, out: {k: number; step: number}[] = [];
-  if (n < 3) return out;
-  for (let k = n; k >= 3; k--) {
-    if (n % k) continue;
-    const a = (2 * Math.PI) / k, c = Math.cos(a), s = Math.sin(a);
-    const turn = (q: V2): V2 => [q[0] * c - q[1] * s, q[0] * s + q[1] * c];
-    const same = (u: V2, v: V2) => Math.hypot(u[0] - v[0], u[1] - v[1]) < 1e-6;
-    // Every slit turned must land on a slit (mouth and direction), with a constant index step.
-    const step = p.slits.findIndex(sl => same(sl.e, turn(p.slits[0].e)) && same(sl.d, turn(p.slits[0].d)));
-    if (step <= 0) continue;
-    if (p.slits.every((sl, i) => { const q = p.slits[(i + step) % n]; return same(q.e, turn(sl.e)) && same(q.d, turn(sl.d)); })) out.push({k, step});
-  }
-  return out;
-}
-
-/**
- * Symmetric growth: a flat centre piece with k-fold symmetric slits; one arm grown from its first slit; the arm
- * copied by turns of 2π/k about the vertical axis onto the matching slits. The whole design then has k-fold
- * symmetry about that axis, so its centre of mass lies on the axis and every orbit of points is level: the feet
- * stand level, and the highest points form a level ring a cover can sit on.
- */
-export function growSymmetric(pieces: Piece[], count: number, t: number, r: Rng, steer: Steer = {}): Grown | null {
-  const centres = pieces.flatMap(p => slitSymmetry(p).map(s => ({p, ...s})));
-  if (!centres.length) return null;
-  const {p: centre, k, step} = r.pick(centres);
-  const n = centre.slits.length, perArm = Math.max(1, Math.round((count - 1) / k));
-  const allowed = pieces.filter(p => (steer.weights?.[p.id] ?? 1) > 0);
-  const growers = allowed.filter(p => p.slits.length >= 2);
-  if (!growers.length) return null;
-  const byId = new Map(pieces.map(p => [p.id, p]));
-  // Grow one arm off centre slit 0, checking it against the centre and itself.
-  const arm: Grown = {types: [centre.id], X: [IDENTITY], joints: [], travel: [null], panels: [makePanel(0, '1', 'module', centre.outline, frameOf(IDENTITY), t, centre.cuts)]};
-  const free: Set<number>[] = [new Set()];
-  const place = (at: number, i: number, kind: Piece, j: number, psi: number) => {
-    const P = byId.get(arm.types[at])!;
-    if (weakJoint(P, kind)) return false;
-    const X = childFrame(arm.X[at], P, i, kind, j, psi);
-    const panel = makePanel(arm.X.length, String(arm.X.length + 1), 'module', kind.outline, frameOf(X), t, kind.cuts);
-    if (arm.panels.some(q => panelDepth(panel, q) > 0)) return false;
-    const dir = rotate(arm.X[at], [P.slits[i].d[0], P.slits[i].d[1], 0]), back = scale(dir, -1);
-    if (pathBlocker(panel, scale(back, exitDistance(panel, arm.panels, back)), arm.panels) !== null) return false;
-    arm.joints.push({child: arm.X.length, parent: at, childSlit: j, parentSlit: i});
-    arm.types.push(kind.id); arm.X.push(X); arm.travel.push(dir); arm.panels.push(panel);
-    free.push(new Set(kind.slits.map((_, q) => q).filter(q => q !== j)));
-    return true;
-  };
-  let ok = false;
-  for (let tries = 0; tries < 30 && !ok; tries++) {
-    const kind = weighted(growers, steer.weights, r);
-    ok = place(0, 0, kind, r.int(0, kind.slits.length - 1), r.pick([Math.PI / 2, (3 * Math.PI) / 2]));
-  }
-  if (!ok) return null;
-  for (let tries = 0; arm.X.length < 1 + perArm && tries < perArm * 60; tries++) {
-    const open = free.map((f, at) => (at > 0 && f.size ? at : -1)).filter(at => at > 0);
-    if (!open.length) break;
-    const at = r.pick(open), i = r.pick([...free[at]]);
-    const kind = arm.X.length >= perArm || r.next() < 0.2 ? weighted(allowed.filter(p => p.slits.length >= 1), steer.weights, r) : weighted(growers, steer.weights, r);
-    if (place(at, i, kind, r.int(0, kind.slits.length - 1), r.pick([Math.PI / 2, (3 * Math.PI) / 2]))) free[at].delete(i);
-  }
-  // Copy the arm round: turn m maps centre slit 0 to slit m·step and every arm piece with it.
-  const g: Grown = {types: [centre.id], X: [IDENTITY], joints: [], travel: [null], panels: [arm.panels[0]]};
-  const armLen = arm.X.length - 1;
-  for (let m = 0; m < k; m++) {
-    const a = (2 * Math.PI * m) / k, c = Math.cos(a), sn = Math.sin(a), turn: Xf = {R: [c, -sn, 0, sn, c, 0, 0, 0, 1], t: [0, 0, 0]};
-    const base = g.X.length;
-    for (let q = 1; q <= armLen; q++) {
-      const X = compose(turn, arm.X[q]), id = g.X.length;
-      const panel = makePanel(id, String(id + 1), 'module', byId.get(arm.types[q])!.outline, frameOf(X), t, byId.get(arm.types[q])!.cuts);
-      if (g.panels.some(o => panelDepth(panel, o) > 0)) return null; // arms run into each other
-      g.types.push(arm.types[q]); g.X.push(X); g.travel.push(rotate(turn, arm.travel[q]!)); g.panels.push(panel);
-    }
-    for (const j of arm.joints) {
-      const parent = j.parent === 0 ? 0 : base + j.parent - 1;
-      g.joints.push({child: base + j.child - 1, parent, childSlit: j.childSlit, parentSlit: j.parent === 0 ? (j.parentSlit + m * step) % n : j.parentSlit});
-    }
-  }
-  repose(g, IDENTITY.R);
-  return g;
 }
 
 /** Principal axes of a point set: longest by power iteration on the covariance, then the next, then their cross product. */

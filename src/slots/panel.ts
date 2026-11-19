@@ -3,8 +3,8 @@
  * and a thickness t centred on the plane. Local (x, y) maps to o + x·u + y·v; the solid is every such point
  * moved by h·n with |h| ≤ t/2. Cuts are convex polygons removed from the outline.
  */
-import {add, cross, dot, norm, scale, sub, type V2, type V3} from './math';
-import {ccw, centroid, clean, clipHalfPlane, convexDecompose, convexMinus, signedArea} from './poly2d';
+import {add, cross, dot, norm, scale, sub, type V2, type V3} from './math.js';
+import {ccw, centroid, clean, clipHalfPlane, convexDecompose, convexMinus, signedArea} from './poly2d.js';
 
 export interface Frame {o: V3; u: V3; v: V3; n: V3}
 
@@ -41,11 +41,6 @@ export function uprightFrame(origin: V3, angle: number): Frame {
 /** Flat panel whose mid-plane sits at origin.z. */
 export function flatFrame(origin: V3, angle = 0): Frame {
   return {o: origin, u: [Math.cos(angle), Math.sin(angle), 0], v: [-Math.sin(angle), Math.cos(angle), 0], n: [0, 0, 1]};
-}
-
-export function frameFrom(o: V3, u: V3, v: V3): Frame {
-  const uu = norm(u), nn = norm(cross(uu, v));
-  return {o, u: uu, v: cross(nn, uu), n: nn};
 }
 
 export function makePanel(id: number, name: string, role: Role, outline: V2[], frame: Frame, t: number, design: V2[][] = []): Panel {

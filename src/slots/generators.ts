@@ -10,15 +10,15 @@
  * Generators only place panels and say which pairs join and how. The carver cuts the slits from the insertion
  * paths, and the engine checks the result, so a generator mistake shows up as a failed check, not a bad design.
  */
-import {add as add3, clamp, dot as dot3, rad, scale as scale3, sub as sub3, type Rng, type V2, type V3} from './math';
-import {arch, circle, flatFrame, makePanel, profile, rect, regular, roundedRect, truncate, uprightFrame, windowCut, withTabs, type Frame, type Panel, type Role, type SlitType} from './panel';
-import type {JointSpec, Step} from './carve';
-import type {Brief, Plan, Typology} from './prompt';
-import {rayHit} from './poly2d';
-import {exitDistance, panelDepth, pathBlocker} from './collide';
-import {apply, chain, chainPanels, compose, DEFAULT_KIT, frameOf, ringClear, rotationBetween, fitRange, makeModule, moduleProblem, restingPose, ringPlacement, ringSolutions, rotate, screwOf, type KitParams, type Module, type Xf} from './kit';
-import {massProps} from './stability';
-import {panelVertices} from './panel';
+import {add as add3, clamp, dot as dot3, rad, scale as scale3, sub as sub3, type Rng, type V2, type V3} from './math.js';
+import {arch, circle, flatFrame, makePanel, profile, rect, regular, roundedRect, truncate, uprightFrame, windowCut, withTabs, type Frame, type Panel, type Role, type SlitType} from './panel.js';
+import type {JointSpec, Step} from './carve.js';
+import type {Brief, Plan, Typology} from './prompt.js';
+import {rayHit} from './poly2d.js';
+import {exitDistance, panelDepth, pathBlocker} from './collide.js';
+import {apply, chain, chainPanels, compose, DEFAULT_KIT, frameOf, ringClear, rotationBetween, fitRange, makeModule, moduleProblem, restingPose, ringPlacement, ringSolutions, rotate, screwOf, type KitParams, type Module, type Xf} from './kit.js';
+import {massProps} from './stability.js';
+import {panelVertices} from './panel.js';
 
 export interface Layout {
   title: string;

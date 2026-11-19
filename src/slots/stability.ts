@@ -15,10 +15,10 @@
  *   loose     it can move downward; gravity pulls it out
  * This is a translational check. Snug slits also block rotation, which is not tested here.
  */
-import {cross, dot, len, norm, scale, type V2, type V3} from './math';
-import {panelBox, pathBlocker, solids} from './collide';
-import {panelArea, panelCentroid, toLocal, type Panel} from './panel';
-import {centroid, clipConvex, convexHull, pointInPolygon, signedArea} from './poly2d';
+import {cross, dot, len, norm, scale, type V2, type V3} from './math.js';
+import {panelBox, pathBlocker, solids} from './collide.js';
+import {panelArea, panelCentroid, toLocal, type Panel} from './panel.js';
+import {centroid, clipConvex, convexHull, signedArea} from './poly2d.js';
 
 export type Hold = 'locked' | 'seated' | 'friction' | 'loose';
 
@@ -131,16 +131,6 @@ export function restingSupport(P: Panel, others: Panel[], eps = 0.05) {
   const c = P.pieces.reduce((s, q) => { const a = signedArea(q), m = centroid(q); return [s[0] + m[0] * a, s[1] + m[1] * a, s[2] + a]; }, [0, 0, 0]);
   const {margin} = insideMargin(hull, [c[0] / c[2], c[1] / c[2]]);
   return {contacts: local.length, hull, margin};
-}
-
-function onBoundary(poly: V2[], q: V2, eps: number) {
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length];
-    const e: V2 = [b[0] - a[0], b[1] - a[1]], l2 = e[0] * e[0] + e[1] * e[1];
-    const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * e[0] + (q[1] - a[1]) * e[1]) / l2));
-    if (Math.hypot(a[0] + e[0] * t - q[0], a[1] + e[1] * t - q[1]) <= eps) return true;
-  }
-  return false;
 }
 
 export const describeHold: Record<Hold, string> = {

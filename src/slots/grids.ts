@@ -12,10 +12,10 @@
  * Slit budget. A column disc needs a slit down (if a layer is below), a slit up (if a layer is above) and one per
  * bridge, at most three in all; the circle kit's pieces cover every such set (C1, C2L, C2I, C3T).
  */
-import {childFrame, type Grown, type Piece, type Steer} from './kits';
-import {frameOf, IDENTITY, type Xf} from './kit';
-import {makePanel, type Frame} from './panel';
-import {cross, type Rng, type V3} from './math';
+import {childFrame, type Grown, type Piece, type Steer} from './kits.js';
+import {frameOf, IDENTITY, type Xf} from './kit.js';
+import {makePanel, type Frame} from './panel.js';
+import {cross, type Rng, type V3} from './math.js';
 
 export interface StackStep {
   /** Pieces placed in this step: one, or a whole layer lowered as a unit. */
@@ -29,7 +29,7 @@ export interface StackStep {
 
 export interface Stacked extends Grown {steps: StackStep[]; columns: number; layers: number}
 
-type Site = [number, number];
+export type Site = [number, number];
 const key = (s: Site) => `${s[0]},${s[1]}`;
 
 /** A frame putting `piece` at `o` in the plane of axes a, b so its slit mouths point exactly along `mouths`. */
@@ -71,10 +71,43 @@ function edgeConnected(sites: Site[]): boolean {
 
 const collinear = (sites: Site[]) => sites.every(s => s[0] === sites[0][0]) || sites.every(s => s[1] === sites[0][1]);
 
-interface Config {sites: Site[]; layers: number; bridges: [Site, Site][][]; total: number}
+/** A grid's columns (lattice sites), layer count and, per layer, the pairs of neighbouring columns bridged. */
+export interface GridLayout {sites: Site[]; layers: number; bridges: [Site, Site][][]}
+interface Config extends GridLayout {total: number}
+
+/**
+ * Why a layout cannot be built, or null. Bridges in even layers (counting from 0) join columns one step apart along
+ * x, odd layers along y; each column disc has at most three slits (down, up, one per bridge); every column must be
+ * tied to the rest by some bridge; and the columns must not all stand in one line.
+ */
+export function gridProblem(layout: GridLayout, ok: (id: string) => boolean = () => true): string | null {
+  const {sites, layers, bridges} = layout;
+  if (sites.length < 3) return 'a grid needs at least three columns';
+  if (new Set(sites.map(key)).size !== sites.length) return 'two columns share a site';
+  if (collinear(sites)) return 'the columns all stand in one line: a top needs three off a line';
+  if (!(layers >= 2 && layers <= 8 && Number.isInteger(layers))) return 'a grid needs 2 to 8 layers';
+  if (bridges.length !== layers) return `give one bridge list per layer (${layers}), even if empty`;
+  const has = new Set(sites.map(key));
+  for (let k = 0; k < layers; k++) for (const [a, b] of bridges[k]) {
+    const step: Site = k % 2 === 0 ? [1, 0] : [0, 1];
+    if (!has.has(key(a)) || !has.has(key(b))) return `layer ${k + 1}: bridge ${key(a)} to ${key(b)} names a site with no column`;
+    if (!((b[0] - a[0] === step[0] && b[1] - a[1] === step[1]) || (a[0] - b[0] === step[0] && a[1] - b[1] === step[1]))) return `layer ${k + 1}: bridges in this layer join neighbours along ${k % 2 === 0 ? 'x' : 'y'}, and ${key(a)} to ${key(b)} does not`;
+  }
+  for (let k = 0; k < layers; k++) for (const s of sites) {
+    const n = (k > 0 ? 1 : 0) + (k < layers - 1 ? 1 : 0) + bridges[k].filter(([a, b]) => key(a) === key(s) || key(b) === key(s)).length;
+    if (n > 3) return `layer ${k + 1}: the column at ${key(s)} would need ${n} slits (down, up and one per bridge), more than a disc has`;
+    if (n === 0) return `layer ${k + 1}: the column at ${key(s)} joins nothing`;
+    if (!ok(n === 1 ? 'C1' : n === 3 ? 'C3T' : 'C2I')) return `layer ${k + 1}: the column at ${key(s)} needs a piece the recipe leaves out`;
+  }
+  const parent = new Map(sites.map(s => [key(s), key(s)]));
+  const find = (x: string): string => (parent.get(x) === x ? x : find(parent.get(x)!));
+  for (const layer of bridges) for (const [a, b] of layer) parent.set(find(key(a)), find(key(b)));
+  if (new Set(sites.map(s => find(key(s)))).size > 1) return 'every column must be tied to the rest by a bridge in some layer';
+  return null;
+}
 
 /** A random column layout, layer count and set of bridges, with roughly `count` pieces. */
-function pickConfig(r: Rng, count: number, ok: (id: string) => boolean): Config | null {
+function pickConfig(r: Rng, count: number, ok: (id: string) => boolean, layerChoices: number[]): Config | null {
   const tolerance = Math.max(3, Math.round(0.25 * count));
   for (let attempt = 0; attempt < 200; attempt++) {
     // Column layout: a 2×2 to 3×3 block with up to a few sites left out (L, T, S, U and plus shapes), as long as
@@ -86,7 +119,7 @@ function pickConfig(r: Rng, count: number, ok: (id: string) => boolean): Config 
       const gone = r.pick(sites), rest = sites.filter(x => x !== gone);
       if (edgeConnected(rest) && !collinear(rest)) sites = rest;
     }
-    const layers = r.pick([2, 3, 3, 4]), has = new Set(sites.map(key));
+    const layers = r.pick(layerChoices), has = new Set(sites.map(key));
     if (layers * sites.length > 30) continue;
     const bridges: [Site, Site][][] = [];
     let total = layers * sites.length;
@@ -134,13 +167,36 @@ function slitTo(sp: Spec, m: V3): number {
   });
 }
 
-/** Build a stacked grid of about `count` pieces from the circle kit, or null if the kit or weights rule it out. */
-export function growStacked(pieces: Piece[], count: number, t: number, r: Rng, steer: Steer = {}): Stacked | null {
+/**
+ * The thickest sheet a grid of these discs allows. A bridge disc lies flat at its columns' centre height; the next
+ * layer's column disc, crossing the column above, reaches down to p − R above that height (p: centre spacing of
+ * crossed discs, R: radius), right beside the bridge's slit. The bridge's top face, half a sheet up, must stay under
+ * it: t ≤ 2(p − R). With slits half the radius deep (less a little) that is about 0.04 × the disc size, so a grid
+ * needs discs at least 25 sheet thicknesses across.
+ */
+export function gridMaxSheet(pieces: Piece[]): number {
+  const C2I = pieces.find(p => p.id === 'C2I');
+  if (!C2I) return 0;
+  const p = Math.hypot(...frameOf(childFrame(IDENTITY, C2I, 0, C2I, 0, Math.PI / 2)).o), R = Math.max(...C2I.outline.map(q => Math.hypot(q[0], q[1])));
+  return 2 * (p - R);
+}
+
+/**
+ * Build a stacked grid of about `count` pieces from the circle kit, or null if the kit or weights rule it out.
+ * `layerChoices`: layer counts drawn from (repeats weight them); fewer layers spread the same pieces wider.
+ */
+export function growStacked(pieces: Piece[], count: number, t: number, r: Rng, steer: Steer = {}, layerChoices = [2, 3, 3, 4]): Stacked | null {
+  const by = new Map(pieces.filter(p => (steer.weights?.[p.id] ?? 1) > 0).map(p => [p.id, p]));
+  if (!by.has('C2I')) return null;
+  const cfg = pickConfig(r, count, id => by.has(id), layerChoices);
+  return cfg && buildGrid(pieces, cfg, t, steer);
+}
+
+/** Build the grid a layout describes (check it with gridProblem first), numbered in build order with its steps. */
+export function buildGrid(pieces: Piece[], cfg: GridLayout, t: number, steer: Steer = {}): Stacked | null {
   const by = new Map(pieces.filter(p => (steer.weights?.[p.id] ?? 1) > 0).map(p => [p.id, p]));
   const C2I = pieces.find(p => p.id === 'C2I');
   if (!C2I || !by.has('C2I')) return null;
-  const cfg = pickConfig(r, count, id => by.has(id));
-  if (!cfg) return null;
   const p = Math.hypot(...frameOf(childFrame(IDENTITY, C2I, 0, C2I, 0, Math.PI / 2)).o);
   const R = Math.max(...C2I.outline.map(q => Math.hypot(q[0], q[1])));
   const X: V3 = [1, 0, 0], Y: V3 = [0, 1, 0], Z: V3 = [0, 0, 1], neg = (v: V3): V3 => [-v[0], -v[1], -v[2]];

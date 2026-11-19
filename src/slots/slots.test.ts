@@ -1,15 +1,15 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {carve, type JointSpec, type Step} from './carve';
-import {collisions, panelDepth} from './collide';
-import {generate} from './engine';
-import {MATRIX} from './generators';
-import {integrity} from './integrity';
-import {rad, type V3} from './math';
-import {circle, flatFrame, makePanel, rect, truncate, uprightFrame, withTabs, type Panel, type SlitType} from './panel';
-import {planAssembly} from './plan';
-import {parsePrompt, type Typology} from './prompt';
-import {groundSupport, partHold} from './stability';
+import {carve, type JointSpec, type Step} from './carve.js';
+import {collisions, panelDepth} from './collide.js';
+import {generate} from './engine.js';
+import {MATRIX} from './generators.js';
+import {integrity} from './integrity.js';
+import {rad, type V3} from './math.js';
+import {circle, flatFrame, makePanel, rect, truncate, uprightFrame, withTabs, type Panel, type SlitType} from './panel.js';
+import {planAssembly} from './plan.js';
+import {parsePrompt, type Typology} from './prompt.js';
+import {groundSupport, partHold} from './stability.js';
 
 const t = 6, c = 0.2, DOWN: V3 = [0, 0, -1];
 const upright = (id: number, deg: number, w = 200, h = 100) => makePanel(id, `P${id}`, 'leg', rect(-w / 2, 0, w / 2, h), uprightFrame([0, 0, 0], rad(deg)), t);
@@ -134,8 +134,8 @@ test('prompt reading', () => {
 
 /* ---------- pinwheel kit ---------- */
 
-import {apply, chain, chainPanels, fitRange, jointAxis, makeModule, ringClear, ringSolutions, rotate as rot} from './kit';
-import {kitDefaults} from './generators';
+import {apply, chain, chainPanels, fitRange, jointAxis, makeModule, ringClear, ringSolutions, rotate as rot} from './kit.js';
+import {kitDefaults} from './generators.js';
 
 test('kit joint is a half-turn: the partner’s slit lies on the same line, reversed, its mouth 2ℓ along', () => {
   const m = makeModule(kitDefaults(6), 100, 4, c), {X} = chain(m, 0, 2, 1.7, 1.9, 2);
@@ -177,12 +177,12 @@ test('kit table and tower verify; a kit sphere says why not', () => {
 
 /* ---------- slot kits, gallery, laser files ---------- */
 
-import {childFrame, coverPiece, finishPieces, grow, pieceProblem} from './kits';
-import {gallery, type GalleryItem} from './gallery';
-import {assemblyGuideHTML, cutSheetDXF, cutSheetSVG} from './svg';
-import {exitDistance, pathBlocker} from './collide';
-import {rng as seeded} from './math';
-import {IDENTITY, frameOf as frameOfX} from './kit';
+import {childFrame, coverPiece, finishPieces, grow, pieceProblem} from './kits.js';
+import {gallery, type GalleryItem} from './gallery.js';
+import {assemblyGuideHTML, cutSheetDXF, cutSheetSVG} from './svg.js';
+import {exitDistance, pathBlocker} from './collide.js';
+import {rng as seeded} from './math.js';
+import {IDENTITY, frameOf as frameOfX} from './kit.js';
 
 test('circular kit is the sketch: discs with 1, 2 (90°), 2 (180°), 3 slits and a half disc notched at both ends', () => {
   const ps = finishPieces('circle', 160, 4, c), by = new Map(ps.map(p => [p.id, p]));
@@ -251,9 +251,9 @@ test('every kit fills a gallery with verified designs, and each exports cut file
 
 /* ---------- engraving, 30-piece designs, recipes ---------- */
 
-import {labelBox} from './gallery';
-import {clampRecipe, recipeWeights, type Recipe} from './recipe';
-import {convexOverlap as overlap2, pointInPolygon as inside2} from './poly2d';
+import {labelBox} from './engrave.js';
+import {clampRecipe, recipeWeights, type Recipe} from './recipe.js';
+import {convexOverlap as overlap2, pointInPolygon as inside2} from './poly2d.js';
 
 test('engraved labels never cross a cut and stay on the piece, for every kit', () => {
   const area = (l: [number, number][]) => l.reduce((s2, a, k) => s2 + a[0] * l[(k + 1) % l.length][1] - l[(k + 1) % l.length][0] * a[1], 0) / 2;
@@ -278,11 +278,13 @@ test('30-piece kit designs verify after loose end pieces are pruned', () => {
 });
 
 test('recipes are clamped to what the generator supports', () => {
-  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, footprintMm: 5000, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
+  const r: Recipe = {kit: 'circle', form: 'tower', pieces: 80, pieceSizeMm: 5, footprintMm: 5000, cover: false, coverShape: 'round', coverMm: 9000, sheetMm: 2.73, favour: ['C2I', 'P6'], avoid: ['C2L', 'C2I', 'C3T', 'H'], branching: 'chain', title: 'x', rationale: 'y'};
   const k = clampRecipe(r);
   assert.equal(k.pieces, 30);
   assert.equal(k.pieceSizeMm, 40);
   assert.equal(k.footprintMm, 8 * 40, 'the footprint circle is held to 2–8 piece sizes');
+  assert.equal(k.coverMm, 1500);
+  assert.equal(clampRecipe({...r, form: 'table'}).cover, true, 'a table always has a cover');
   assert.equal(k.sheetMm, 2.7);
   assert.ok(!k.favour.includes('P6' as never), 'pieces from another kit are dropped');
   assert.ok(['C2L', 'C2I', 'C3T', 'H'].some(id => !k.avoid.includes(id as never)), 'a growing piece is always left');
@@ -291,8 +293,8 @@ test('recipes are clamped to what the generator supports', () => {
 
 /* ---------- tables: a cover of the kit's own shape resting on a level top ---------- */
 
-import {coverReport} from './covers';
-import {tableStance} from './gallery';
+import {coverReport} from './covers.js';
+import {tableStance} from './gallery.js';
 
 test('circle tables are stacked grids: tall, level cover on top, braced joints, built layer by layer', () => {
   const size = 200, items = [...gallery({kit: 'circle', intent: 'table', count: 14, size, t: 6, clearance: c, seed: 1, designs: 3, attempts: 80})].filter((x): x is GalleryItem => 'design' in x);
@@ -325,8 +327,8 @@ test('a table must stand tall, stay narrow and keep its cover over its feet', ()
 
 /* ---------- slit joints are hinges about their slit lines ---------- */
 
-import {crossings, hingeModes} from './hinges';
-import {weakJoint} from './kits';
+import {crossings, hingeModes} from './hinges.js';
+import {weakJoint} from './kits.js';
 
 test('a flat disc held on one slit line swings on it; one held on two lines at 90° is braced', () => {
   const ps = finishPieces('circle', 240, 6, c), by = new Map(ps.map(p => [p.id, p]));
@@ -361,8 +363,8 @@ test('no design pairs two half discs notch to notch', () => {
 
 /* ---------- random form: no target shape, inside a circle on the floor ---------- */
 
-import {enclosingCircle} from './poly2d';
-import {planDiameter} from './gallery';
+import {enclosingCircle} from './poly2d.js';
+import {planDiameter} from './gallery.js';
 
 test('smallest enclosing circle: two points set it, or three on its rim', () => {
   const sq = enclosingCircle([[0, 0], [2, 0], [2, 2], [0, 2], [1, 1]]);
@@ -389,7 +391,7 @@ test('random designs fit inside their footprint circle and pass every check', ()
 
 /* ---------- laser files: the lab's line weights ---------- */
 
-import {CUT_STROKE_MM} from './svg';
+import {CUT_STROKE_MM} from './svg.js';
 
 test('cut files carry the laser line weights: 0.072 pt in the SVG, lineweight 0 in a well-formed R2000 DXF', () => {
   const it = [...gallery({kit: 'circle', intent: 'any', count: 6, size: 150, t: 4, clearance: c, seed: 1, designs: 1, attempts: 40})].find((x): x is GalleryItem => 'design' in x)!;
@@ -459,8 +461,97 @@ test('with keepFallers, up to a third of the designs may need propping; their on
 });
 
 test('recipes are held to the kits the page shows', () => {
-  const r: Recipe = {kit: 'hexagon', form: 'any', pieces: 10, pieceSizeMm: 200, footprintMm: 800, sheetMm: 4, favour: ['P6'], avoid: [], branching: 'mixed', title: 'x', rationale: 'y'};
+  const r: Recipe = {kit: 'hexagon', form: 'any', pieces: 10, pieceSizeMm: 200, footprintMm: 800, cover: false, coverShape: 'round', coverMm: 0, sheetMm: 4, favour: ['P6'], avoid: [], branching: 'mixed', title: 'x', rationale: 'y'};
   const k = clampRecipe(r);
   assert.equal(k.kit, 'circle');
   assert.deepEqual(k.favour, [], 'pieces of a hidden kit are dropped');
+});
+
+/* ---------- covers wherever the brief needs a top ---------- */
+
+import {fittedCover} from './covers.js';
+import {makePanel as mkPanel, flatFrame as flat} from './panel.js';
+
+test('a fitted cover is the top hull grown by the margin, round-cornered, and widened to the least width asked', () => {
+  // A 100 × 60 slab lying flat: its top face is the hull.
+  const slab = mkPanel(0, 'slab', 'top', [[0, 0], [100, 0], [100, 60], [0, 60]], flat([0, 0, 10]), 6);
+  const f = fittedCover([slab], 6, 0.2, 20)!;
+  const xs = f.outline.map(q => q[0]), ys = f.outline.map(q => q[1]);
+  assert.ok(Math.abs(Math.max(...xs) - Math.min(...xs) - 140) < 0.5 && Math.abs(Math.max(...ys) - Math.min(...ys) - 100) < 0.5, 'grown by 20 all round');
+  assert.ok(Math.abs(xs.reduce((a, b) => a + b, 0) / xs.length) < 1, 'centred');
+  const wide = fittedCover([slab], 6, 0.2, 20, 160)!, wy = wide.outline.map(q => q[1]);
+  assert.ok(Math.max(...wy) - Math.min(...wy) >= 160 - 0.5, 'widened to the least width');
+  assert.equal(f.slits.length, 0);
+});
+
+test('a cover asked for on any form rests on a braced grid: round at least the size asked, or cut to fit', () => {
+  const base = {kit: 'circle', count: 14, size: 240, t: 6, clearance: c, seed: 1, designs: 2, attempts: 120} as const;
+  for (const [intent, cover] of [['tower', {shape: 'round', minMm: 500}], ['spread', {shape: 'fitted', minMm: 0}], ['random', {shape: 'fitted', minMm: 0}]] as const) {
+    const items = [...gallery({...base, intent, cover, footprint: 1200})].filter((x): x is GalleryItem => 'design' in x);
+    assert.ok(items.length >= 1, `${intent}: ${items.length}`);
+    for (const it of items) {
+      assert.ok(it.design.ok && it.stands && it.top, intent);
+      assert.equal(it.top!.shape, cover.shape);
+      assert.ok(it.top!.width >= cover.minMm - 0.5, `${intent}: top ${it.top!.width} mm`);
+      assert.equal(it.design.checks.find(x => x.label === 'Braced joints')?.level, 'ok');
+      assert.ok(it.design.title.endsWith(`${it.design.panels.length - 1} pieces`) && it.design.title.includes('with a top'));
+      if (intent === 'random') assert.ok(it.footprint!.needed <= 1200.5);
+    }
+  }
+  assert.throws(() => [...gallery({...base, kit: 'hexagon', intent: 'any', cover: {shape: 'round', minMm: 0}})], /Circular kit/);
+});
+
+test('a grid needs discs at least 25 sheets across: thinner, the bridges hit the layer above', () => {
+  const base = {kit: 'circle', intent: 'table', count: 14, clearance: c, seed: 1, designs: 1, attempts: 60} as const;
+  assert.throws(() => [...gallery({...base, size: 200, t: 9})], /at least 225 mm/);
+  const ok = [...gallery({...base, size: 225, t: 9})].filter((x): x is GalleryItem => 'design' in x);
+  assert.ok(ok.length === 1 && ok[0].design.hits.length === 0);
+  const r: Recipe = {kit: 'circle', form: 'spread', pieces: 14, pieceSizeMm: 200, footprintMm: 800, cover: true, coverShape: 'round', coverMm: 0, sheetMm: 9, favour: [], avoid: [], branching: 'mixed', title: 'x', rationale: 'y'};
+  assert.equal(clampRecipe(r).pieceSizeMm, 225, 'a covered recipe is raised to 25 sheets');
+  assert.equal(clampRecipe({...r, cover: false}).pieceSizeMm, 200, 'a tree has no such limit');
+});
+
+/* ---------- designs specified piece by piece (the Opus agent's tool) ---------- */
+
+import {buildDesign, type DesignSpec} from './agent';
+
+test('a spec builds exactly and deterministically, with every piece placed and free slits named', () => {
+  const spec: DesignSpec = {title: 'hub', pieceSizeMm: 200, sheetMm: 4, tree: {pieces: ['C3T', 'C2I', 'C2I', 'C2I'], up: 'steadiest', joints: [
+    {piece: 2, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'},
+    {piece: 3, onto: 1, slit: 'a', ontoSlit: 'b', side: 'left'},
+    {piece: 4, onto: 1, slit: 'a', ontoSlit: 'c', side: 'left'},
+  ]}};
+  const a = buildDesign(spec), b = buildDesign(spec);
+  assert.ok(a.report.ok && a.item, a.report.text);
+  assert.equal(a.report.pieces, 4);
+  assert.deepEqual(a.item!.design.panels.map(p => p.frame.o), b.item!.design.panels.map(p => p.frame.o), 'same spec, same design');
+  assert.match(a.report.text, /2 C2I: centre .*free slits: b opens/);
+  // The new piece lands 1.04 R out through the slit's mouth.
+  const [p1, p2] = a.item!.design.panels.map(p => p.frame.o);
+  assert.ok(Math.abs(Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]) - 1.04 * 100) < 0.5);
+});
+
+test('a spec that cannot build says why, in terms that can be fixed', () => {
+  const tree = (joints: DesignSpec['tree'] extends infer T ? NonNullable<T>['joints'] : never, pieces = ['C2I', 'C2I', 'C2I'] as const) => buildDesign({title: 'x', pieceSizeMm: 200, sheetMm: 4, tree: {pieces: [...pieces], joints}}).report;
+  assert.match(tree([{piece: 2, onto: 1, slit: 'c', ontoSlit: 'a', side: 'left'}]).text, /has slits a, b; there is no slit c/);
+  assert.match(tree([{piece: 2, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'}, {piece: 3, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'}]).text, /slit a of piece 1 is already used/);
+  assert.match(tree([{piece: 2, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'}]).text, /piece 3 has no joint/);
+  assert.match(tree([{piece: 2, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'}], ['H', 'H'] as never).text, /half discs cannot join notch to notch/);
+  const covered = buildDesign({title: 'x', pieceSizeMm: 200, sheetMm: 4, cover: {shape: 'round', minMm: 0}, tree: {pieces: ['C2I', 'C2I'], joints: [{piece: 2, onto: 1, slit: 'a', ontoSlit: 'a', side: 'left'}]}}).report;
+  assert.match(covered.text, /a cover needs a grid/);
+});
+
+test('a grid spec builds the exact layout, with a fitted top when asked, and wrong bridges are named', () => {
+  const grid = {columns: [[0, 0], [1, 0], [0, 1], [1, 1]] as [number, number][], layers: 3, bridges: [
+    {layer: 1, from: [0, 0], to: [1, 0]}, {layer: 1, from: [0, 1], to: [1, 1]},
+    {layer: 2, from: [0, 0], to: [0, 1]}, {layer: 2, from: [1, 0], to: [1, 1]},
+    {layer: 3, from: [0, 0], to: [1, 0]}, {layer: 3, from: [0, 1], to: [1, 1]},
+  ] as {layer: number; from: [number, number]; to: [number, number]}[]};
+  const r = buildDesign({title: 'square table', pieceSizeMm: 240, sheetMm: 6, grid, cover: {shape: 'fitted', minMm: 0}});
+  assert.ok(r.report.ok && r.item!.top, r.report.text);
+  assert.equal(r.report.pieces, 4 * 3 + 6 + 1);
+  // Square to within a sheet: the column tops are one sheet thick across their plane.
+  assert.ok(Math.abs(r.item!.top!.width - r.item!.top!.depth) <= 6 + 0.5, 'a square layout gets a square top');
+  const wrong = buildDesign({title: 'x', pieceSizeMm: 240, sheetMm: 6, grid: {...grid, bridges: [{layer: 1, from: [0, 0], to: [0, 1]}]}});
+  assert.match(wrong.report.text, /layer 1: bridges in this layer join neighbours along x/);
 });

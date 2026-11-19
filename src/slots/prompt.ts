@@ -2,7 +2,7 @@
  * Rule-based prompt reading. It recognises a fixed vocabulary (typologies, sizes, dimensions, plan shapes,
  * counts, materials, slit words) and reports what it understood. It is not general language understanding.
  */
-import type {SlitType} from './panel';
+import type {SlitType} from './panel.js';
 
 export type Typology = 'table' | 'tower' | 'sphere';
 export type Plan = 'round' | 'square' | 'rect' | 'hex' | 'tri';

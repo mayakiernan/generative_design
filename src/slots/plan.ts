@@ -13,9 +13,9 @@
  * out, the planner tries lifting the pieces above each height (whole, then each connected part) off as one rigid
  * unit along an axis, and plans that unit's own assembly separately.
  */
-import {cross, dot, len, norm, scale, type V3} from './math';
-import {exitDistance, panelBox, pathBlocker} from './collide';
-import type {Panel} from './panel';
+import {cross, dot, len, norm, scale, type V3} from './math.js';
+import {exitDistance, panelBox, pathBlocker} from './collide.js';
+import type {Panel} from './panel.js';
 
 /** One move. `group`: pieces built off to one side as a unit and moved together (`panel` is the first of them). */
 export interface BuildStep {panel: number; travel: V3; distance: number; group?: number[]}

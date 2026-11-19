@@ -19,6 +19,11 @@ export interface GalleryOptions extends Steer {
   kit: KitId; intent: Intent; count: number; size: number; t: number; clearance: number; seed: number; designs: number; attempts: number;
   /** Random form only: diameter of the circle the design's plan must fit inside, mm. Default 4 piece sizes. */
   footprint?: number;
+  /**
+   * Also show designs that pass every check but standing: laid on their steadiest face, they would need propping.
+   * At most a third of the designs. Tables always stand.
+   */
+  keepFallers?: boolean;
 }
 
 export interface GalleryItem {
@@ -33,6 +38,8 @@ export interface GalleryItem {
   top?: {height: number; tiltDeg: number; safeFrac: number; loadKg: number; supports: number; coverScale: number};
   /** Random form only: the smallest circle round the plan, against the limit (diameters, mm). */
   footprint?: {needed: number; limit: number};
+  /** Stands on the floor by itself (tips past 4°). False: it passes every other check but needs propping. */
+  stands: boolean;
 }
 
 const INTENT_TITLE: Record<Intent, string> = {any: 'Slot sculpture', tower: 'Slot tower', spread: 'Low spread', compact: 'Compact cluster', table: 'Slot table', random: 'Random design'};
@@ -132,7 +139,8 @@ export function* gallery(o: GalleryOptions): Generator<GalleryItem | {tried: num
   const byId = new Map([...pieces, cover].map(p => [p.id, p]));
   const failed: Record<string, number> = {};
   const note = (why: string) => { failed[why] = (failed[why] ?? 0) + 1; };
-  let found = 0, tried = 0;
+  let found = 0, tried = 0, fallers = 0;
+  const fallerCap = o.keepFallers && !table ? Math.ceil(o.designs / 3) : 0;
   const seen = new Set<string>();
   for (let a = 0; a < o.attempts && found < o.designs; a++) {
     tried++;
@@ -174,14 +182,15 @@ export function* gallery(o: GalleryOptions): Generator<GalleryItem | {tried: num
       g = grow(pieces, Math.ceil(o.count * 1.2), o.intent, o.t, r, {weights: o.weights, branching: o.branching}, up && {up, radius: limit / 2});
       if (!g) { note(random ? 'could not place enough pieces inside the circle' : 'could not place enough pieces'); continue; }
       // Stand it up, prune what gravity would pull out, and stand it up again: pruning moves the centre of mass.
+      // While there is room for one more, a design that will not stand in its intended pose is kept in that pose.
       let stood = true;
       for (let pass = 0; pass < 3 && stood; pass++) {
-        const st = standUp(g, o.intent, up);
+        const st = standUp(g, o.intent, up, fallers < fallerCap);
         if (!st) { stood = false; break; }
         if (up) up = rotate({R: st.R, t: [0, 0, 0]}, up);
         const before = g.types.length;
         g = pruneLoose(g, o.count, o.clearance);
-        if (g.types.length === before) break;
+        if (g.types.length === before || st.fell) break;
       }
       if (!stood) { note(o.intent === 'tower' ? 'would not stand upright' : 'would not stand'); continue; }
       // Standing on another face (when the floor face tips too soon) can leave a wider plan.
@@ -221,7 +230,15 @@ export function* gallery(o: GalleryOptions): Generator<GalleryItem | {tried: num
         detail: `${Math.round(rep.safeFrac * 100)}% of the cover lies over what holds it up; a load there cannot tip the cover off${isFinite(rep.loadKg) ? `, and the whole design tips only past ${rep.loadKg.toFixed(1)} kg` : ', nor tip the design'}`});
       d.ok = d.checks.every(c => c.level !== 'error');
     }
-    if (!d.ok) { for (const c of d.checks.filter(c => c.level === 'error')) note(c.label.toLowerCase()); continue; }
+    // A design whose only failure is standing is kept (it needs propping) while there is room for one more.
+    const errors = d.checks.filter(c => c.level === 'error');
+    const stands = !table ? d.support.tipDeg > 4 && !errors.some(c => c.label === 'Stands') : true;
+    const keep = d.ok || (!stands && errors.every(c => c.label === 'Stands'));
+    if (!keep) { for (const c of errors) note(c.label.toLowerCase()); continue; }
+    if (!stands) {
+      if (fallers >= fallerCap) { note('would not stand'); continue; }
+      fallers++;
+    }
     // Build in growth order: each piece's straight slide was checked against everything placed before it.
     const L = (k: number) => String.fromCharCode(97 + k), kind = (k: number) => ids.get(grown.types[k])!.name.toLowerCase();
     const coverText = `${stacked ? 'Lay' : 'Stand it up and lay'} the cover (piece ${grown.panels.length}${coverScale === 1 ? '' : `, ${coverScale}× the piece size`}) on top, resting on pieces ${supports.map(i => i + 1).join(', ')}.`;
@@ -245,7 +262,7 @@ export function* gallery(o: GalleryOptions): Generator<GalleryItem | {tried: num
     for (const id of grown.types) counts.set(id, (counts.get(id) ?? 0) + 1);
     found++;
     yield {
-      id: `${o.kit}-${o.intent}-${seed}`, seed, design: d, top, footprint: random ? {needed: footprint, limit} : undefined,
+      id: `${o.kit}-${o.intent}-${seed}`, seed, design: d, top, stands, footprint: random ? {needed: footprint, limit} : undefined,
       score: table ? top!.safeFrac + Math.min(d.support.tipDeg, 30) / 30 : score(d, o.intent), steps: text.map(t => ({text: t})),
       parts: [...counts.entries()].map(([id, count]) => ({id, name: ids.get(id)!.name, count})),
       marks: marksFor(grown.types, ids, o.size),

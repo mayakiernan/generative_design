@@ -444,3 +444,23 @@ test('cut files carry the laser line weights: 0.072 pt in the SVG, lineweight 0 
     assert.equal(r.filter(p => p[0] === 10).length, Number(get(r, 90)));
   }
 });
+
+/* ---------- designs that need propping, and the circle-only page ---------- */
+
+test('with keepFallers, up to a third of the designs may need propping; their only failed check is Stands', () => {
+  const opts = {kit: 'circle', intent: 'tower', count: 14, size: 240, t: 6, clearance: c, seed: 1, designs: 9, attempts: 300} as const;
+  const items = [...gallery({...opts, keepFallers: true})].filter((x): x is GalleryItem => 'design' in x);
+  const fallers = items.filter(it => !it.stands);
+  assert.ok(fallers.length >= 1 && fallers.length <= 3, `${fallers.length} of ${items.length} need support`);
+  for (const it of fallers) assert.deepEqual(it.design.checks.filter(x => x.level === 'error').map(x => x.label), ['Stands']);
+  for (const it of items.filter(it => it.stands)) assert.ok(it.design.ok && it.design.support.tipDeg > 4);
+  const strict = [...gallery({...opts, designs: 4, attempts: 300})].filter((x): x is GalleryItem => 'design' in x);
+  assert.ok(strict.length > 0 && strict.every(it => it.stands && it.design.ok), 'without keepFallers every design stands');
+});
+
+test('recipes are held to the kits the page shows', () => {
+  const r: Recipe = {kit: 'hexagon', form: 'any', pieces: 10, pieceSizeMm: 200, footprintMm: 800, sheetMm: 4, favour: ['P6'], avoid: [], branching: 'mixed', title: 'x', rationale: 'y'};
+  const k = clampRecipe(r);
+  assert.equal(k.kit, 'circle');
+  assert.deepEqual(k.favour, [], 'pieces of a hidden kit are dropped');
+});

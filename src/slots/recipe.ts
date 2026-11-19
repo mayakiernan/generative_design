@@ -4,6 +4,8 @@
  * function can import it.
  */
 export const KIT_IDS = ['circle', 'triangle', 'pentagon', 'hexagon', 'decagon'] as const;
+/** Kits the page offers. The others stay in the engine but are hidden; recipes are held to these. */
+export const VISIBLE_KITS = ['circle'] as const;
 export const FORMS = ['any', 'tower', 'spread', 'compact', 'table', 'random'] as const;
 export const BRANCHING = ['chain', 'mixed', 'bushy'] as const;
 export const PIECES_BY_KIT = {
@@ -39,7 +41,8 @@ export const TABLE_MIN_PIECES = 10;
 const clamp = (x: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, Number.isFinite(x) ? x : lo));
 
 /** Keep a recipe inside what the generator supports: ranges, and piece ids that belong to the chosen kit. */
-export function clampRecipe(r: Recipe): Recipe {
+export function clampRecipe(recipe: Recipe): Recipe {
+  const r = {...recipe, kit: (VISIBLE_KITS as readonly string[]).includes(recipe.kit) ? recipe.kit : VISIBLE_KITS[0]};
   const own = new Set<string>(PIECES_BY_KIT[r.kit] as readonly string[]);
   const avoid = r.avoid.filter(id => own.has(id));
   // Never avoid every piece that can grow: at least one piece with two or more slits must stay.

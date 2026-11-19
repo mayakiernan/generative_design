@@ -380,17 +380,24 @@ function principalAxes(pts: V3[]): {major: V3; minor: V3} {
 /**
  * Stand the design on its convex hull: towers on the face across their long axis, the rest on whichever tips last.
  * With `up`, a face within 15° of across it if one stands (a random design on the floor it grew from), else the
- * steadiest face.
+ * steadiest face. With `orFall`, a design with no such face that stands is still set on the best of them, its
+ * intended pose (a tower upright), and comes back marked `fell`: shown that way it needs propping.
  */
-export function standUp(g: Grown, intent: Intent, up?: V3): {tipDeg: number; R: number[]} | null {
+export function standUp(g: Grown, intent: Intent, up?: V3, orFall = false): {tipDeg: number; R: number[]; fell?: boolean} | null {
   const pts = g.panels.flatMap(panelVertices), {com} = massProps(g.panels);
   // Towers stand on their long axis; spreads lie down on their thinnest direction; others take the steadiest face.
   const ax = intent === 'spread' ? principalAxes(pts) : null;
   // A tower grows as a chain, so its axis runs from the first piece to the last.
   const chainAxis = norm(sub(g.panels[g.panels.length - 1].frame.o, g.panels[0].frame.o));
-  let rest = restingPose(pts, com, up ? {axis: up, maxTiltDeg: 15} : ax || intent === 'tower' ? {axis: intent === 'tower' ? chainAxis : ax!.minor, maxTiltDeg: intent === 'tower' ? 35 : 40} : undefined);
-  if (up && !(rest.tipDeg > 4)) rest = restingPose(pts, com);
-  if (!(rest.tipDeg > 4)) return null;
+  const intended = restingPose(pts, com, up ? {axis: up, maxTiltDeg: 15} : ax || intent === 'tower' ? {axis: intent === 'tower' ? chainAxis : ax!.minor, maxTiltDeg: intent === 'tower' ? 35 : 40} : undefined);
+  let rest = intended;
+  // A random design that will not stand on its floor turns to its steadiest face, unless it may be shown falling.
+  if (up && !(rest.tipDeg > 4) && !(orFall && Number.isFinite(intended.tipDeg))) rest = restingPose(pts, com);
+  if (!(rest.tipDeg > 4)) {
+    if (!orFall || !Number.isFinite(intended.tipDeg)) return null;
+    repose(g, intended.R);
+    return {tipDeg: intended.tipDeg, R: intended.R, fell: true};
+  }
   repose(g, rest.R);
   return {tipDeg: rest.tipDeg, R: rest.R};
 }

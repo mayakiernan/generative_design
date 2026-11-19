@@ -79,6 +79,17 @@ vercel env add ANTHROPIC_API_KEY production
 vercel deploy --prod
 ```
 
+## Variable-angle hubs (prototype)
+
+`hubs/index.html` (open `/hubs/` on the dev server) and `npm run hubs` turn a shape into toothpicks plus one 3D-printed hub per joint. Each hub's bores point exactly along its sticks, and each bore's stop depth is chosen so one uncut stick spans the gap: hub spacing = stick length + both stop depths.
+
+- Shapes come in two kinds. A **mesh** (the banana; later, a text-to-3D model's output) becomes a triangulated shell: farthest-point sampling and Lloyd iterations place evenly spaced hubs on the surface, and sticks join hubs whose surface regions touch. A **part list** (the chair; later, parts labeled by a vision or language model) becomes a frame: rods become chains, plates become grids, and touching ends fuse.
+- Size is free. The shape is scaled so spans land inside the band one uncut stick can cover (68.5–87.5 mm with the defaults), then hubs slide along the surface to pull outliers in.
+- A bore's minimum stop depth depends on how close its nearest neighbour bore is: s·sin(θ/2) ≥ bore radius + wall/2. Sticks closer than about 14° can't share a hub.
+- `src/hubs/params.ts` holds the dimensions. The bore is 2.1 mm, measured from the 18-hole test connector. That differs from `PHYSICAL.socketRadius` used by the lattice app.
+- The report lists sticks that need trimming or fall short (beyond a 1 mm tolerance), the smallest stick angle and size of each hub, and whether the frame would be rigid with free pin joints. It does not simulate friction, strength or print orientation; hubs need supports.
+- `npm run hubs -- banana --sticks 60` writes `out/hubs/<shape>/` with one STL per hub, a print-plate STL, `design.json` and `report.txt`.
+
 ## Slot constructions (prototype)
 
 `/slots/` has two tabs.

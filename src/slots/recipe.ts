@@ -10,7 +10,7 @@ export const FORMS = ['any', 'tower', 'spread', 'compact', 'table', 'random'] as
 export const BRANCHING = ['chain', 'mixed', 'bushy'] as const;
 export const COVER_SHAPES = ['round', 'fitted'] as const;
 export const PIECES_BY_KIT = {
-  circle: ['C1', 'C2L', 'C2I', 'C3T', 'H'],
+  circle: ['C1', 'C2L', 'C2I', 'C3T', 'H', 'H1'],
   triangle: ['T1', 'T2', 'T3', 'TP'],
   pentagon: ['P5'],
   hexagon: ['P6'],
@@ -55,7 +55,7 @@ export function clampRecipe(recipe: Recipe): Recipe {
   const own = new Set<string>(PIECES_BY_KIT[r.kit] as readonly string[]);
   const avoid = r.avoid.filter(id => own.has(id));
   // Never avoid every piece that can grow: at least one piece with two or more slits must stay.
-  const growers = (PIECES_BY_KIT[r.kit] as readonly string[]).filter(id => id !== 'C1' && id !== 'T1');
+  const growers = (PIECES_BY_KIT[r.kit] as readonly string[]).filter(id => id !== 'C1' && id !== 'T1' && id !== 'H1');
   const safeAvoid = growers.every(id => (avoid as string[]).includes(id)) ? avoid.filter(id => !growers.includes(id)) : avoid;
   const sheet = Math.round(clamp(r.sheetMm, LIMITS.sheetMm) * 10) / 10, covered = r.form === 'table' || r.cover === true;
   // A cover rests on a braced grid, whose discs must be at least 25 sheets across: raise the size if needed.

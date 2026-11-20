@@ -30,7 +30,7 @@ export function KitSheetTab() {
     <div className="kg ks">
       <section className="kg-intro">
         <h1>Kit sheet</h1>
-        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The slotted discs come in the proportions the generator actually uses, measured over 176 designs of every form; half discs (notched, or with one slit from the curved edge toward the flat edge, cut in back-to-back pairs) and plain discs with no slits are extra. The sheet is outlines only unless you turn on engraving, which marks each piece's type and slit letters to match the build steps. A slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
+        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The slotted discs come in the proportions the generator actually uses, measured over 283 designs of every form; half discs (notched, or with one slit from the curved edge toward the flat edge, cut in back-to-back pairs) and plain discs with no slits are extra. The sheet is outlines only unless you turn on engraving, which marks each piece's type and slit letters to match the build steps. A slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
       </section>
 
       <div className="kg-controls">

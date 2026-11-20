@@ -568,7 +568,7 @@ import {KIT_SHEET_DEFAULTS, kitSheet} from './kitSheet';
 
 test('a kit sheet fills the stock with the measured mix, half discs in pairs, nothing overlapping', () => {
   const s = kitSheet(KIT_SHEET_DEFAULTS);
-  assert.deepEqual(s.counts, {C2L: 9, C2I: 8, C3T: 7, C1: 2, plain: 4, H: 6, H1: 4});
+  assert.deepEqual(s.counts, {C2L: 9, C2I: 9, C3T: 6, C1: 2, plain: 4, H: 6, H1: 4});
   assert.ok(s.fitStrip && s.warnings.length === 0 && s.covers === 0);
   assert.equal(s.labels.length, 0, 'outlines only by default');
   assert.deepEqual(s.fitWidths, [2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5]);
@@ -593,4 +593,26 @@ test('a kit sheet takes a mix and tops, and says what does not fit', () => {
   assert.ok(tiny.warnings.some(w => /tops fit/.test(w)) && tiny.warnings.some(w => /half discs fit/.test(w)), tiny.warnings.join(' | '));
   const thick = kitSheet({...KIT_SHEET_DEFAULTS, sheet: 6});
   assert.ok(thick.warnings.some(w => /too small for tables/.test(w)));
+});
+
+/* ---------- thinnest bridge: real necks count, sharp tips do not ---------- */
+
+import {minLigament} from './integrity';
+
+test('the thinnest bridge finds real necks and thin arms, not the sharp point where a notch meets a rim', () => {
+  // A 100 × 50 block slotted from the top down to 2 mm above the bottom: a 2 mm bridge with material on both sides.
+  const slotted: [number, number][] = [[0, 0], [100, 0], [100, 50], [51, 50], [51, 2], [49, 2], [49, 50], [0, 50]];
+  assert.ok(Math.abs(minLigament([slotted]).width - 2) < 0.01, `${minLigament([slotted]).width}`);
+  // A long thin arm (1.5 × 20 mm) sticking out of a block is fragile, and still caught.
+  const arm: [number, number][] = [[0, 0], [60, 0], [60, 20], [80, 20], [80, 21.5], [60, 21.5], [60, 40], [0, 40]];
+  assert.ok(Math.abs(minLigament([arm]).width - 1.5) < 0.01, `${minLigament([arm]).width}`);
+  // A sharp 5° point on an otherwise thick piece is a tip, not a bridge.
+  const tip: [number, number][] = [[0, 0], [60, 0], [60 + 80 * Math.cos(Math.PI / 36), 80 * Math.sin(Math.PI / 36)], [60, 14], [0, 14]];
+  assert.ok(minLigament([tip]).width > 5, `${minLigament([tip]).width}`);
+  // The notched half disc: its notch mouths are points, and its real thinnest bridge is wide, at every size.
+  for (const size of [60, 80, 100, 160]) {
+    const h = finishPieces('circle', size, 3, c).find(p => p.id === 'H')!;
+    const w = integrity(makePanel(0, 'H', 'module', h.outline, flatFrame([0, 0, 0]), 3, h.cuts)).ligament.width;
+    assert.ok(w > 0.2 * size, `${size} mm: ${w.toFixed(1)} mm`);
+  }
 });

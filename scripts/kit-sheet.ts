@@ -18,7 +18,7 @@ const o = {size: arg('size', d.size), sheet: arg('sheet', d.sheet), fit: arg('fi
   gap: arg('gap', d.gap), margin: arg('margin', d.margin), halves: arg('halves', d.halves), halfSlits: arg('half-slits', d.halfSlits), plain: arg('plain', d.plain), covers: arg('covers', d.covers), coverScale: arg('cover-scale', d.coverScale),
   engrave: process.argv.includes('--engrave')};
 
-/** Share of each full disc in designs grown in every form, each form weighted equally. */
+/** Share of each slotted disc in designs grown in every form, each form weighted equally; half discs are reported too. */
 function measure(): Record<FullPiece, number> {
   const forms = [['random'], ['any'], ['tower'], ['spread'], ['compact'], ['table'], ['tower', 'top'], ['spread', 'top']] as const;
   const share = Object.fromEntries(FULL_PIECES.map(p => [p, 0])) as Record<FullPiece, number>;
@@ -27,10 +27,10 @@ function measure(): Record<FullPiece, number> {
     let discs = 0;
     for (const seed of [1, 2]) for (const count of [12, 18]) for (const x of gallery({kit: 'circle', intent, count, size: o.size, t: o.sheet, clearance: o.fit, seed, designs: 4, attempts: 80, footprint: 4 * o.size, cover: top ? {shape: 'round', minMm: 0} : undefined})) {
       if (!('design' in x) || !(x as GalleryItem).stands) continue;
-      for (const p of (x as GalleryItem).parts) if ((FULL_PIECES as readonly string[]).includes(p.id)) { per[p.id] = (per[p.id] ?? 0) + p.count; discs += p.count; }
+      for (const p of (x as GalleryItem).parts) if (p.id !== 'CV') { per[p.id] = (per[p.id] ?? 0) + p.count; if ((FULL_PIECES as readonly string[]).includes(p.id)) discs += p.count; }
     }
     for (const id of FULL_PIECES) share[id] += (per[id] ?? 0) / Math.max(1, discs) / forms.length;
-    console.log(`  ${[intent, top].filter(Boolean).join(' + ').padEnd(14)} ${FULL_PIECES.map(id => `${id} ${per[id] ?? 0}`).join('  ')}`);
+    console.log(`  ${[intent, top].filter(Boolean).join(' + ').padEnd(14)} ${[...FULL_PIECES, 'H', 'H1'].map(id => `${id} ${per[id] ?? 0}`).join('  ')}`);
   }
   return share;
 }

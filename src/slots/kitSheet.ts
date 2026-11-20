@@ -25,12 +25,14 @@ export const FULL_PIECES = ['C2L', 'C2I', 'C3T', 'C1'] as const;
 export type FullPiece = (typeof FULL_PIECES)[number];
 
 /**
- * Share of each full disc across designs the generator grows, every form weighted equally (random, sculpture,
- * tower, spread, compact, table, tower and spread with a top): 176 designs at 80 mm discs, 3 mm sheet, 2026-11-19.
- * Half discs never survived the checks, so they are not in the mix. Tables averaged 16–17 discs per top, and their
- * tops were 1.75× (45), 2× (43) and 2.5× (16) the disc size. `npm run kit-sheet -- --measure` measures it again.
+ * Share of each slotted disc across designs the generator grows, every form weighted equally (random, sculpture,
+ * tower, spread, compact, table, tower and spread with a top): 283 designs at 80 mm discs, 3 mm sheet, 2026-11-20.
+ * Half discs are counted apart (MEASURED_HALVES): their number on a sheet is set directly. Tables averaged 16–17
+ * discs per top, and their tops were 1.75×, 2× and 2.5× the disc size. `npm run kit-sheet -- --measure` measures again.
  */
-export const MEASURED_MIX: Record<FullPiece, number> = {C2L: 0.366, C2I: 0.334, C3T: 0.265, C1: 0.057};
+export const MEASURED_MIX: Record<FullPiece, number> = {C2L: 0.365, C2I: 0.339, C3T: 0.245, C1: 0.051};
+/** Share of all pieces in the same designs that were half discs: notched (H), and with one slit (H1). Grids use neither. */
+export const MEASURED_HALVES = {H: 0.110, H1: 0.011};
 
 export interface KitSheetOptions {
   /** Disc diameter, mm. */ size: number;
@@ -159,7 +161,7 @@ export function kitSheet(o: KitSheetOptions): KitSheet {
     `Stock ${W} × ${H} mm (${(W / 25.4).toFixed(1)} × ${(H / 25.4).toFixed(1)} in), ${t} mm sheet. Discs ${size} mm across, slits ${(t + fit).toFixed(2)} mm wide (sheet ${t} + fit ${fit}).`,
     '',
     'Per sheet:',
-    ...[...FULL_PIECES, 'plain' as const, 'H' as const, 'H1' as const].filter(id => counts[id]).map(id => `  ${String(counts[id]).padStart(3)} × ${(id === 'plain' ? 'disc' : id).padEnd(4)} ${NAMES[id]}${id === 'H' ? '   (extra: the generator keeps none; for hand-built and Opus designs)' : id === 'H1' ? '   (extra: slit from the curved edge toward the flat edge; ends a branch with a flat edge)' : id === 'plain' ? '   (extra: caps and spares)' : `   (${Math.round(mix[id] * 100)}% of the slotted discs)`}`),
+    ...[...FULL_PIECES, 'plain' as const, 'H' as const, 'H1' as const].filter(id => counts[id]).map(id => `  ${String(counts[id]).padStart(3)} × ${(id === 'plain' ? 'disc' : id).padEnd(4)} ${NAMES[id]}${id === 'H' ? `   (${Math.round(MEASURED_HALVES.H * 100)}% of the pieces in generated designs)` : id === 'H1' ? `   (${Math.round(MEASURED_HALVES.H1 * 100)}% of the pieces in generated designs; slit from the curved edge toward the flat edge)` : id === 'plain' ? '   (extra: caps and spares)' : `   (${Math.round(mix[id] * 100)}% of the slotted discs)`}`),
     ...(covers.length ? [`  ${String(covers.length).padStart(3)} × top  Round top, ${size * o.coverScale} mm`] : []),
     `  ${String(total).padStart(3)} pieces${covers.length ? ` and ${covers.length} top${covers.length === 1 ? '' : 's'}` : ''}${fitStrip ? ', plus a slit-fit test strip' : ''}`,
     '',

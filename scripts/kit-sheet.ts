@@ -1,11 +1,12 @@
 // npm run kit-sheet -- [options]: the Kit sheet tab's cut sheet from the command line (src/slots/kitSheet.ts).
 //
-// Writes out/kit-sheet/kit-sheet.svg (Illustrator: red 0.072 pt cuts, blue engraving), kit-sheet.dxf (AutoCAD
-// R2000: lineweight 0, CUT red, ENGRAVE blue) and kit-sheet.txt (the counts and notes).
+// Writes out/kit-sheet/kit-sheet.svg (Illustrator: red 0.072 pt cuts), kit-sheet.dxf (AutoCAD R2000: lineweight 0,
+// layer CUT red; layer ENGRAVE blue with --engrave) and kit-sheet.txt (the counts and notes).
 //
 // Options (mm): --size 80 disc diameter, --sheet 3 measured thickness, --fit 0.2 slit clearance, --width 609.6
-// --height 457.2 stock (24 × 18 in), --gap 4, --margin 8, --halves 6, --covers 0, --cover-scale 2,
-// --measure to measure the mix of full discs again from designs the generator grows (a few minutes).
+// --height 457.2 stock (24 × 18 in), --gap 4, --margin 8, --halves 6, --plain 4 plain discs (no slits), --covers 0,
+// --cover-scale 2, --engrave to engrave types, slit letters and fit widths (outlines only without it), --measure to
+// measure the mix of slotted discs again from designs the generator grows (a few minutes).
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {gallery, type GalleryItem} from '../src/slots/gallery.js';
 import {FULL_PIECES, KIT_SHEET_DEFAULTS, kitSheet, type FullPiece} from '../src/slots/kitSheet.js';
@@ -14,7 +15,8 @@ import {sheetDXF, sheetSVG} from '../src/slots/svg.js';
 const arg = (name: string, fallback: number) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? Number(process.argv[i + 1]) : fallback; };
 const d = KIT_SHEET_DEFAULTS;
 const o = {size: arg('size', d.size), sheet: arg('sheet', d.sheet), fit: arg('fit', d.fit), width: arg('width', d.width), height: arg('height', d.height),
-  gap: arg('gap', d.gap), margin: arg('margin', d.margin), halves: arg('halves', d.halves), covers: arg('covers', d.covers), coverScale: arg('cover-scale', d.coverScale)};
+  gap: arg('gap', d.gap), margin: arg('margin', d.margin), halves: arg('halves', d.halves), plain: arg('plain', d.plain), covers: arg('covers', d.covers), coverScale: arg('cover-scale', d.coverScale),
+  engrave: process.argv.includes('--engrave')};
 
 /** Share of each full disc in designs grown in every form, each form weighted equally. */
 function measure(): Record<FullPiece, number> {

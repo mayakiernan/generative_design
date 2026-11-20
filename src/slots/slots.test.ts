@@ -562,19 +562,25 @@ import {KIT_SHEET_DEFAULTS, kitSheet} from './kitSheet';
 
 test('a kit sheet fills the stock with the measured mix, half discs in pairs, nothing overlapping', () => {
   const s = kitSheet(KIT_SHEET_DEFAULTS);
-  assert.deepEqual(s.counts, {C2L: 12, C2I: 10, C3T: 8, C1: 2, H: 6});
+  assert.deepEqual(s.counts, {C2L: 10, C2I: 9, C3T: 7, C1: 2, plain: 4, H: 6});
   assert.ok(s.fitStrip && s.warnings.length === 0 && s.covers === 0);
+  assert.equal(s.labels.length, 0, 'outlines only by default');
+  assert.deepEqual(s.fitWidths, [2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5]);
   const boxes = s.loops.map(l => ({x0: Math.min(...l.map(q => q[0])), x1: Math.max(...l.map(q => q[0])), y0: Math.min(...l.map(q => q[1])), y1: Math.max(...l.map(q => q[1]))}));
   assert.ok(boxes.every(b => b.x0 >= 8 - 1e-6 && b.y0 >= 8 - 1e-6 && b.x1 <= 609.6 - 8 + 1e-6 && b.y1 <= 457.2 - 8 + 1e-6), 'inside the margins');
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
     const a = boxes[i], b = boxes[j];
     assert.ok(Math.max(b.x0 - a.x1, a.x0 - b.x1, b.y0 - a.y1, a.y0 - b.y1) >= 2 - 1e-6, `parts ${i} and ${j} at least 2 mm apart`);
   }
-  assert.ok(s.labels.some(l => l.text === 'C3T') && s.labels.some(l => l.text === 'c') && s.labels.some(l => l.text === '3.2'), 'types, slit letters and fit widths engraved');
+  const engraved = kitSheet({...KIT_SHEET_DEFAULTS, engrave: true});
+  assert.equal(engraved.loops.length, s.loops.length);
+  assert.ok(engraved.labels.some(l => l.text === 'C3T') && engraved.labels.some(l => l.text === 'c') && engraved.labels.some(l => l.text === '3.2') && engraved.labels.some(l => l.text === 'disc'), 'with engrave: types, slit letters and fit widths');
+  // A plain disc is one closed outline with no slits: a 72-gon.
+  assert.ok(s.loops.filter(l => l.length === 72).length >= 4);
 });
 
 test('a kit sheet takes a mix and tops, and says what does not fit', () => {
-  const tops = kitSheet({...KIT_SHEET_DEFAULTS, covers: 1, halves: 0, mix: {C2I: 1}});
+  const tops = kitSheet({...KIT_SHEET_DEFAULTS, covers: 1, halves: 0, plain: 0, mix: {C2I: 1}});
   assert.equal(tops.covers, 1);
   assert.deepEqual(tops.counts, {C2I: 31}, 'a 2× top takes four cells; the rest follow the mix given');
   const tiny = kitSheet({...KIT_SHEET_DEFAULTS, width: 150, height: 120, halves: 10, covers: 1});

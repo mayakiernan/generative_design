@@ -30,7 +30,7 @@ export function KitSheetTab() {
     <div className="kg ks">
       <section className="kg-intro">
         <h1>Kit sheet</h1>
-        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The full discs come in the proportions the generator actually uses, measured over 176 designs of every form; half discs are extra, in back-to-back pairs. Every piece is engraved with its type and slit letters, so any design's build steps can be followed with pieces from the pile, and a slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
+        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The slotted discs come in the proportions the generator actually uses, measured over 176 designs of every form; half discs (in back-to-back pairs) and plain discs with no slits are extra. The sheet is outlines only unless you turn on engraving, which marks each piece's type and slit letters to match the build steps. A slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
       </section>
 
       <div className="kg-controls">
@@ -48,20 +48,22 @@ export function KitSheetTab() {
       </div>
       <div className="kg-controls">
         <label>Half discs <span className="unit"><NumberField label="Half discs, in pairs" value={o.halves} min={0} max={60} step={2} onCommit={v => set({halves: v})} /></span></label>
+        <label>Plain discs <span className="unit"><NumberField label="Plain discs with no slits" value={o.plain} min={0} max={60} step={1} onCommit={v => set({plain: v})} /></span></label>
         <label>Round tops <span className="unit"><NumberField label="Round tops" value={o.covers} min={0} max={6} step={1} onCommit={v => set({covers: v})} /></span></label>
         {o.covers > 0 && <label>Top size <span className="unit"><NumberField label="Top diameter as a multiple of the disc" value={o.coverScale} min={1} max={3} step={0.25} onCommit={v => set({coverScale: v})} />× disc</span></label>}
         <label>Gap <span className="unit"><NumberField label="Space between parts in mm" value={o.gap} min={1} max={20} step={0.5} onCommit={v => set({gap: v})} />mm</span></label>
         <label>Margin <span className="unit"><NumberField label="Margin from the stock's edges in mm" value={o.margin} min={0} max={50} step={1} onCommit={v => set({margin: v})} />mm</span></label>
+        <label className="ks-check"><input type="checkbox" checked={o.engrave} onChange={e => set({engrave: e.target.checked})} /> Engrave labels</label>
       </div>
       <div className="kg-controls ks-mix">
-        <span className="mono label">MIX OF FULL DISCS</span>
+        <span className="mono label">MIX OF SLOTTED DISCS</span>
         {FULL_PIECES.map(id => <label key={id} title={PIECE_NAME[id]}>{id} <span className="unit"><NumberField label={`${PIECE_NAME[id]}, share in percent`} value={o.mix[id]} min={0} max={100} step={1} onCommit={v => set({mix: {...o.mix, [id]: v}})} />%</span></label>)}
         <button type="button" disabled={measured} onClick={() => set({mix: percent(MEASURED_MIX)})}>{measured ? 'Measured mix' : 'Back to measured mix'}</button>
       </div>
 
       {sheet.warnings.length > 0 && <ul className="ks-warn">{sheet.warnings.map(w => <li key={w}>{w}</li>)}</ul>}
       <div className="ks-out">
-        <p className="ks-counts">{FULL_PIECES.filter(id => sheet.counts[id]).map(id => <span key={id}><b>{sheet.counts[id]}</b> {id}</span>)}{sheet.counts.H ? <span><b>{sheet.counts.H}</b> half</span> : null}{sheet.covers ? <span><b>{sheet.covers}</b> top{sheet.covers === 1 ? '' : 's'}</span> : null}<span className="muted">{total} pieces{sheet.fitStrip ? ' + fit strip' : ''} · slits {(o.sheet + o.fit).toFixed(2)} mm</span></p>
+        <p className="ks-counts">{FULL_PIECES.filter(id => sheet.counts[id]).map(id => <span key={id}><b>{sheet.counts[id]}</b> {id}</span>)}{sheet.counts.plain ? <span><b>{sheet.counts.plain}</b> plain</span> : null}{sheet.counts.H ? <span><b>{sheet.counts.H}</b> half</span> : null}{sheet.covers ? <span><b>{sheet.covers}</b> top{sheet.covers === 1 ? '' : 's'}</span> : null}<span className="muted">{total} pieces{sheet.fitStrip ? ' + fit strip' : ''} · slits {(o.sheet + o.fit).toFixed(2)} mm</span></p>
         <div className="downloads">
           <button type="button" className="primary" disabled={!total} onClick={() => download(`${name}.svg`, sheetSVG(sheet.loops, sheet.labels, sheet.width, sheet.height, sheet.comment), 'image/svg+xml')}>Cut sheet · SVG</button>
           <button type="button" disabled={!total} onClick={() => download(`${name}.dxf`, sheetDXF(sheet.loops, sheet.labels, sheet.width, sheet.height), 'application/dxf')}>Cut sheet · DXF</button>
@@ -73,7 +75,7 @@ export function KitSheetTab() {
         {sheet.loops.map((l, i) => <path key={i} d={loopPath([l])} />)}
         {sheet.labels.map((m, i) => <text key={i} x={m.at[0]} y={m.at[1]} fontSize={m.size} textAnchor="middle" dominantBaseline="central">{m.text}</text>)}
       </svg>
-      <p className="muted small">Preview only: lines are drawn thicker here than in the files. Cut the fit strip first, push an offcut of the same sheet into each slit, and set Sheet and Fit so their sum is the snuggest slit that still goes in by hand; use the same numbers in the gallery.</p>
+      <p className="muted small">Preview only: lines are drawn thicker here than in the files.{sheet.fitStrip && !o.engrave ? ` Fit strip slits, left to right: ${sheet.fitWidths.map(w => w.toFixed(1)).join(', ')} mm.` : ''} Cut the fit strip first, push an offcut of the same sheet into each slit, and set Sheet and Fit so their sum is the snuggest slit that still goes in by hand; use the same numbers in the gallery.</p>
     </div>
   );
 }

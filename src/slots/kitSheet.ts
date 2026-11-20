@@ -2,11 +2,12 @@
  * Kit sheet: one laser sheet of loose kit pieces for building many designs, rather than the pieces of one design.
  * Used by the page's Kit sheet tab and by `npm run kit-sheet`.
  *
- * Full discs come in the proportions the generator actually uses (MEASURED_MIX), or any mix given. Half discs are
- * added in back-to-back pairs; round tops on request. Every piece is engraved with its type and slit letters, so
- * any design's build steps ("slit a of piece 3, disc with 3 slits") can be followed with pieces from the pile. A
- * slit-fit test strip goes in the band left at the bottom: slits from sheet − 0.3 to sheet + 0.5 mm, each engraved
- * with its width.
+ * Slotted discs come in the proportions the generator actually uses (MEASURED_MIX), or any mix given. Half discs
+ * are added in back-to-back pairs, plain discs (no slits) as caps and spares, round tops on request. By default the
+ * sheet is outlines only; with `engrave`, every piece also gets its type and slit letters, so a design's build steps
+ * ("slit a of piece 3, disc with 3 slits") can be followed with pieces from the pile, and the fit strip its widths.
+ * The slit-fit test strip goes in the band left at the bottom: slits from sheet − 0.3 to sheet + 0.5 mm, widening
+ * left to right in 0.1 mm steps.
  *
  * Layout: square cells one disc plus a gap wide, filled row by row; a pair of half discs shares a cell; a top takes
  * a block of cells at the bottom right.
@@ -37,20 +38,24 @@ export interface KitSheetOptions {
   /** Stock, mm. */ width: number; height: number;
   /** Space between parts, and from the stock's edges, mm. */ gap: number; margin: number;
   /** Half discs (rounded up to pairs). */ halves: number;
+  /** Plain discs, no slits. */ plain: number;
+  /** Engrave each piece's type and slit letters, and the fit strip's widths; off, the sheet is outlines only. */ engrave: boolean;
   /** Round tops, and their size as a multiple of the disc. */ covers: number; coverScale: number;
   /** Relative weight of each full disc; missing or all zero uses MEASURED_MIX. */ mix?: Partial<Record<FullPiece, number>>;
 }
 
-/** 24 × 18 in stock, 3 mm sheet, 80 mm discs, six half discs, no tops. */
-export const KIT_SHEET_DEFAULTS: KitSheetOptions = {size: 80, sheet: 3, fit: 0.2, width: 609.6, height: 457.2, gap: 4, margin: 8, halves: 6, covers: 0, coverScale: 2};
+/** 24 × 18 in stock, 3 mm sheet, 80 mm discs, six half discs, four plain discs, no tops, outlines only. */
+export const KIT_SHEET_DEFAULTS: KitSheetOptions = {size: 80, sheet: 3, fit: 0.2, width: 609.6, height: 457.2, gap: 4, margin: 8, halves: 6, plain: 4, covers: 0, coverScale: 2, engrave: false};
 
 export interface KitSheet {
   width: number; height: number;
   /** Closed cut loops and engraved labels, mm, y down. */
   loops: V2[][]; labels: SheetLabel[];
-  /** Pieces per type (H counts half discs), and tops. */
-  counts: Partial<Record<FullPiece | 'H', number>>; covers: number;
+  /** Pieces per type (H counts half discs, plain the discs with no slits), and tops. */
+  counts: Partial<Record<FullPiece | 'H' | 'plain', number>>; covers: number;
   fitStrip: boolean;
+  /** The fit strip's slit widths, left to right, mm. */
+  fitWidths: number[];
   /** Things the maker should know: what did not fit, tables needing bigger discs, pieces that cannot be cut. */
   warnings: string[];
   /** Plain-text notes to keep with the files. */
@@ -59,7 +64,7 @@ export interface KitSheet {
   comment: string;
 }
 
-const NAMES: Record<FullPiece | 'H', string> = {C2L: 'Disc, 2 slits at 90°', C2I: 'Disc, 2 slits at 180°', C3T: 'Disc, 3 slits', C1: 'Disc, 1 slit', H: 'Half disc, 2 notches'};
+const NAMES: Record<FullPiece | 'H' | 'plain', string> = {C2L: 'Disc, 2 slits at 90°', C2I: 'Disc, 2 slits at 180°', C3T: 'Disc, 3 slits', C1: 'Disc, 1 slit', H: 'Half disc, 2 notches', plain: 'Plain disc, no slits'};
 
 export function kitSheet(o: KitSheetOptions): KitSheet {
   const {size, sheet: t, fit, width: W, height: H, gap, margin} = o, warnings: string[] = [];
@@ -83,35 +88,40 @@ export function kitSheet(o: KitSheetOptions): KitSheet {
   const cells: [number, number][] = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (!taken.has(`${c},${r}`)) cells.push([c, r]);
 
-  // Half discs first, a back-to-back pair per cell; then full discs by largest remainder, at least two of each used.
-  const halfCells = Math.min(Math.ceil(Math.max(0, o.halves) / 2), cells.length), discCells = cells.length - halfCells;
+  // Half discs first, a back-to-back pair per cell, then plain discs; then slotted discs by largest remainder, at
+  // least two of each used.
+  const halfCells = Math.min(Math.ceil(Math.max(0, o.halves) / 2), cells.length);
   if (halfCells < Math.ceil(Math.max(0, o.halves) / 2)) warnings.push(`Only ${2 * halfCells} of ${o.halves} half discs fit.`);
+  const plainCells = Math.min(Math.max(0, Math.round(o.plain)), cells.length - halfCells);
+  if (plainCells < Math.max(0, Math.round(o.plain))) warnings.push(`Only ${plainCells} of ${o.plain} plain discs fit.`);
+  const discCells = cells.length - halfCells - plainCells;
   const want = FULL_PIECES.map(id => ({id, cells: mix[id] > 0 ? Math.max(Math.min(2, discCells), mix[id] * discCells) : 0}));
-  const alloc = new Map<FullPiece | 'H', number>(want.map(w => [w.id, Math.floor(w.cells)]));
-  alloc.set('H', halfCells);
+  const alloc = new Map<FullPiece | 'H' | 'plain', number>(want.map(w => [w.id, Math.floor(w.cells)]));
+  alloc.set('H', halfCells); alloc.set('plain', plainCells);
   let left = cells.length - [...alloc.values()].reduce((a, b) => a + b, 0);
   for (const w of [...want].filter(w => w.cells > 0).sort((a, b) => (b.cells % 1) - (a.cells % 1))) if (left > 0) { alloc.set(w.id, alloc.get(w.id)! + 1); left--; }
-  while (left < 0) { const most = [...alloc.entries()].filter(([id]) => id !== 'H').sort((a, b) => b[1] - a[1])[0]; alloc.set(most[0], most[1] - 1); left++; }
+  while (left < 0) { const most = [...alloc.entries()].filter(([id]) => id !== 'H' && id !== 'plain').sort((a, b) => b[1] - a[1])[0]; alloc.set(most[0], most[1] - 1); left++; }
 
-  // Each piece: its cut loops, its type where a design's piece number would go, and its slit letters.
+  // Each piece: its cut loops, and if engraving, its type where a design's piece number would go and its slit letters.
   const loops: V2[][] = [], labels: SheetLabel[] = [];
+  const plain = coverPiece('circle', size, t, fit);
   const place = (p: Piece, cx: number, cy: number, turn = 0, label = p.id) => {
     const c = Math.cos(turn), s = Math.sin(turn), at = (q: V2): V2 => [cx + q[0] * c - q[1] * s, cy - (q[0] * s + q[1] * c)];
     for (const l of integrity(makePanel(0, p.id, 'module', p.outline, flatFrame([0, 0, 0]), t, p.cuts)).loops) loops.push(l.map(at));
-    for (const m of marksFor([p.id], new Map(byId).set(p.id, p), size)) {
+    if (o.engrave) for (const m of marksFor([p.id], new Map(byId).set(p.id, p), size)) {
       const slit = /^[a-c]$/.test(m.text);
       labels.push({at: at(m.at), text: slit ? m.text : label, size: slit ? m.size : Math.min(m.size, size * (label.length > 2 ? 0.065 : 0.09))});
     }
   };
   const counts: KitSheet['counts'] = {};
   let n = 0;
-  for (const id of [...FULL_PIECES, 'H' as const]) for (let k = 0; k < alloc.get(id)!; k++) {
+  for (const id of [...FULL_PIECES, 'plain' as const, 'H' as const]) for (let k = 0; k < alloc.get(id)!; k++) {
     const [c, r] = cells[n++], cx = margin + c * P + size / 2, cy = margin + r * P + size / 2;
     if (id === 'H') {
       // Back to back, flat edges half a gap apart: three quarters of a gap clear of the discs above and below.
       place(byId.get('H')!, cx, cy + gap / 4); place(byId.get('H')!, cx, cy - gap / 4, Math.PI);
       counts.H = (counts.H ?? 0) + 2;
-    } else { place(byId.get(id)!, cx, cy); counts[id] = (counts[id] ?? 0) + 1; }
+    } else { place(id === 'plain' ? plain : byId.get(id)!, cx, cy, 0, id === 'plain' ? 'disc' : id); counts[id] = (counts[id] ?? 0) + 1; }
   }
   for (const [c0, r0] of covers) {
     const span = coverCells * P - gap;
@@ -129,11 +139,11 @@ export function kitSheet(o: KitSheetOptions): KitSheet {
     for (let k = widths.length - 1; k >= 0; k--) {
       const x = x0 + pitch * (k + 1), w = widths[k];
       strip.push([x + w / 2, y0], [x + w / 2, y0 + depth], [x - w / 2, y0 + depth], [x - w / 2, y0]);
-      labels.push({at: [x, y0 + depth + (stripH - depth) / 2], text: w.toFixed(1), size: 3.2});
+      if (o.engrave) labels.push({at: [x, y0 + depth + (stripH - depth) / 2], text: w.toFixed(1), size: 3.2});
     }
     strip.push([x0, y0]);
     loops.push(strip);
-    if (W - 2 * margin - stripW > 180) labels.push({at: [(x0 + stripW + W - margin) / 2, y0 + stripH / 2], text: `Slot kit · ${size} mm discs · ${t} mm sheet · slits ${(t + fit).toFixed(2)} mm`, size: 4});
+    if (o.engrave && W - 2 * margin - stripW > 180) labels.push({at: [(x0 + stripW + W - margin) / 2, y0 + stripH / 2], text: `Slot kit · ${size} mm discs · ${t} mm sheet · slits ${(t + fit).toFixed(2)} mm`, size: 4});
   } else if (rows > 0) warnings.push('No room for the slit-fit strip below the last row: make the stock a little taller, or cut a strip separately.');
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -144,14 +154,15 @@ export function kitSheet(o: KitSheetOptions): KitSheet {
     `Stock ${W} × ${H} mm (${(W / 25.4).toFixed(1)} × ${(H / 25.4).toFixed(1)} in), ${t} mm sheet. Discs ${size} mm across, slits ${(t + fit).toFixed(2)} mm wide (sheet ${t} + fit ${fit}).`,
     '',
     'Per sheet:',
-    ...[...FULL_PIECES, 'H' as const].filter(id => counts[id]).map(id => `  ${String(counts[id]).padStart(3)} × ${id.padEnd(4)} ${NAMES[id]}${id === 'H' ? '   (extra: the generator keeps none; for hand-built and Opus designs)' : `   (${Math.round(mix[id] * 100)}% of the full discs)`}`),
+    ...[...FULL_PIECES, 'plain' as const, 'H' as const].filter(id => counts[id]).map(id => `  ${String(counts[id]).padStart(3)} × ${(id === 'plain' ? 'disc' : id).padEnd(4)} ${NAMES[id]}${id === 'H' ? '   (extra: the generator keeps none; for hand-built and Opus designs)' : id === 'plain' ? '   (extra: caps and spares)' : `   (${Math.round(mix[id] * 100)}% of the slotted discs)`}`),
     ...(covers.length ? [`  ${String(covers.length).padStart(3)} × top  Round top, ${size * o.coverScale} mm`] : []),
     `  ${String(total).padStart(3)} pieces${covers.length ? ` and ${covers.length} top${covers.length === 1 ? '' : 's'}` : ''}${fitStrip ? ', plus a slit-fit test strip' : ''}`,
     '',
-    `${given > 0 ? 'The full discs follow the mix entered.' : 'The full discs follow how often each appears in designs the generator grows, every form weighted equally.'} Each piece is engraved with its type and its slit letters, matching the build steps.`,
+    `${given > 0 ? 'The slotted discs follow the mix entered.' : 'The slotted discs follow how often each appears in designs the generator grows, every form weighted equally.'} ${o.engrave ? 'Each piece is engraved with its type and its slit letters, matching the build steps.' : 'Outlines only, no engraving: tell the discs apart by their slits (C1 one; C2L two at 90°; C2I two opposite; C3T three).'}`,
     '',
+    fitStrip ? `Fit strip slits, left to right: ${widths.map(w => w.toFixed(1)).join(', ')} mm.` : '',
     fitStrip ? `Before cutting a batch: cut the strip, push an offcut of the same sheet into each slit, and take the snuggest width that still goes in by hand. If it is not ${(t + fit).toFixed(1)} mm, set the sheet and fit to match and generate again (and use the same in the gallery).` : '',
     ...warnings.map(w => `Note: ${w}`),
   ].filter((l, i, a) => l !== '' || a[i - 1] !== '').join('\n');
-  return {width: W, height: H, loops, labels, counts, covers: covers.length, fitStrip, warnings, summary, comment};
+  return {width: W, height: H, loops, labels, counts, covers: covers.length, fitStrip, fitWidths: fitStrip ? widths : [], warnings, summary, comment};
 }

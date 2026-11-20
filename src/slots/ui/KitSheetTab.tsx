@@ -30,7 +30,7 @@ export function KitSheetTab() {
     <div className="kg ks">
       <section className="kg-intro">
         <h1>Kit sheet</h1>
-        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The slotted discs come in the proportions the generator actually uses, measured over 176 designs of every form; half discs (in back-to-back pairs) and plain discs with no slits are extra. The sheet is outlines only unless you turn on engraving, which marks each piece's type and slit letters to match the build steps. A slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
+        <p>One laser sheet of loose kit pieces to build many designs from, rather than the pieces of one design. The slotted discs come in the proportions the generator actually uses, measured over 176 designs of every form; half discs (notched, or with one slit from the curved edge toward the flat edge, cut in back-to-back pairs) and plain discs with no slits are extra. The sheet is outlines only unless you turn on engraving, which marks each piece's type and slit letters to match the build steps. A slit-fit strip along the bottom tells you the fit to use. Cut lines are 0.072 pt in the SVG (Illustrator) and lineweight 0 in the DXF (AutoCAD).</p>
       </section>
 
       <div className="kg-controls">
@@ -47,7 +47,8 @@ export function KitSheetTab() {
         <label>Disc <span className="unit"><NumberField label="Disc diameter in mm" value={o.size} min={40} max={300} step={5} onCommit={v => set({size: v})} />mm</span></label>
       </div>
       <div className="kg-controls">
-        <label>Half discs <span className="unit"><NumberField label="Half discs, in pairs" value={o.halves} min={0} max={60} step={2} onCommit={v => set({halves: v})} /></span></label>
+        <label>Half discs, 2 notches <span className="unit"><NumberField label="Notched half discs, in pairs" value={o.halves} min={0} max={60} step={2} onCommit={v => set({halves: v})} /></span></label>
+        <label>Half discs, 1 slit <span className="unit"><NumberField label="Half discs with one slit from the curved edge, in pairs" value={o.halfSlits} min={0} max={60} step={2} onCommit={v => set({halfSlits: v})} /></span></label>
         <label>Plain discs <span className="unit"><NumberField label="Plain discs with no slits" value={o.plain} min={0} max={60} step={1} onCommit={v => set({plain: v})} /></span></label>
         <label>Round tops <span className="unit"><NumberField label="Round tops" value={o.covers} min={0} max={6} step={1} onCommit={v => set({covers: v})} /></span></label>
         {o.covers > 0 && <label>Top size <span className="unit"><NumberField label="Top diameter as a multiple of the disc" value={o.coverScale} min={1} max={3} step={0.25} onCommit={v => set({coverScale: v})} />× disc</span></label>}
@@ -63,7 +64,7 @@ export function KitSheetTab() {
 
       {sheet.warnings.length > 0 && <ul className="ks-warn">{sheet.warnings.map(w => <li key={w}>{w}</li>)}</ul>}
       <div className="ks-out">
-        <p className="ks-counts">{FULL_PIECES.filter(id => sheet.counts[id]).map(id => <span key={id}><b>{sheet.counts[id]}</b> {id}</span>)}{sheet.counts.plain ? <span><b>{sheet.counts.plain}</b> plain</span> : null}{sheet.counts.H ? <span><b>{sheet.counts.H}</b> half</span> : null}{sheet.covers ? <span><b>{sheet.covers}</b> top{sheet.covers === 1 ? '' : 's'}</span> : null}<span className="muted">{total} pieces{sheet.fitStrip ? ' + fit strip' : ''} · slits {(o.sheet + o.fit).toFixed(2)} mm</span></p>
+        <p className="ks-counts">{FULL_PIECES.filter(id => sheet.counts[id]).map(id => <span key={id}><b>{sheet.counts[id]}</b> {id}</span>)}{sheet.counts.plain ? <span><b>{sheet.counts.plain}</b> plain</span> : null}{sheet.counts.H ? <span><b>{sheet.counts.H}</b> half, notched</span> : null}{sheet.counts.H1 ? <span><b>{sheet.counts.H1}</b> half, 1 slit</span> : null}{sheet.covers ? <span><b>{sheet.covers}</b> top{sheet.covers === 1 ? '' : 's'}</span> : null}<span className="muted">{total} pieces{sheet.fitStrip ? ' + fit strip' : ''} · slits {(o.sheet + o.fit).toFixed(2)} mm</span></p>
         <div className="downloads">
           <button type="button" className="primary" disabled={!total} onClick={() => download(`${name}.svg`, sheetSVG(sheet.loops, sheet.labels, sheet.width, sheet.height, sheet.comment), 'image/svg+xml')}>Cut sheet · SVG</button>
           <button type="button" disabled={!total} onClick={() => download(`${name}.dxf`, sheetDXF(sheet.loops, sheet.labels, sheet.width, sheet.height), 'application/dxf')}>Cut sheet · DXF</button>

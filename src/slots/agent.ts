@@ -21,7 +21,7 @@ import {scale, type V3} from './math.js';
 import {buildGrid, gridProblem, type Site} from './grids.js';
 import {coverGrid, finishItem, gridSheetProblem, planDiameter, type Built, type CoverSpec, type GalleryItem} from './gallery.js';
 
-export const DESIGN_PIECES = ['C1', 'C2L', 'C2I', 'C3T', 'H'] as const;
+export const DESIGN_PIECES = ['C1', 'C2L', 'C2I', 'C3T', 'H', 'H1'] as const;
 export type DesignPiece = (typeof DESIGN_PIECES)[number];
 /** The most pieces a spec may have: the checks grow with the square of the count. */
 export const MAX_DESIGN_PIECES = 80;

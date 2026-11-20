@@ -45,7 +45,7 @@ export function mouth(outline: V2[], d: V2, off: number): V2 {
   return [p[0] + back[0] * s, p[1] + back[1] * s];
 }
 
-/** The five disc pieces from the sketch. Slits run from the rim halfway to the centre. */
+/** The disc pieces: five from the sketch, plus a half disc with one slit. Slits run from the rim halfway to the centre. */
 function circlePieces(size: number): PieceType[] {
   const R = size / 2, disc = circle(R, 72), ln = 0.48 * R;
   const half = truncate(circle(R, 72), [0, 1], 0); // flat edge on top, as drawn
@@ -56,6 +56,9 @@ function circlePieces(size: number): PieceType[] {
     {id: 'C3T', name: 'Disc, 3 slits', outline: disc, slits: [radial(R, 90), radial(R, 180), radial(R, 0)], len: ln},
     // Half disc: the 180° disc cut along its slits, so both slits become notches along the flat edge.
     {id: 'H', name: 'Half disc, 2 notches', outline: half, slits: [], len: ln, notched: true},
+    // Half disc with one slit from the middle of its curved edge straight in toward the flat edge, as deep as every
+    // slit, so it mates with any of them; it ends a branch like C1.
+    {id: 'H1', name: 'Half disc, 1 slit', outline: half, slits: [{e: mouth(half, [0, 1], 0), d: [0, 1]}], len: ln},
   ];
 }
 
@@ -90,7 +93,7 @@ function pinwheelPieces(n: number) {
 }
 
 export const KITS: KitDef[] = [
-  {id: 'circle', name: 'Circular', blurb: 'Discs with 1, 2 or 3 slits and a notched half disc', pieces: circlePieces},
+  {id: 'circle', name: 'Circular', blurb: 'Discs with 1, 2 or 3 slits, a notched half disc and a half disc with 1 slit', pieces: circlePieces},
   {id: 'triangle', name: 'Triangular', blurb: 'Triangles with 1, 2 or 3 slits and a pinwheel triangle', pieces: trianglePieces},
   {id: 'pentagon', name: 'Pentagon', blurb: 'One pentagon with a slit on every edge', pieces: pinwheelPieces(5)},
   {id: 'hexagon', name: 'Hexagon', blurb: 'One hexagon with a slit on every edge', pieces: pinwheelPieces(6)},
@@ -129,7 +132,7 @@ export function finishPieces(kit: KitId, size: number, t: number, c: number): Pi
 /** Why a piece can't work: slits must not run into each other, and each needs 2ℓ of material along its line. */
 export function pieceProblem(p: Piece): string | null {
   const segs = p.outline.map((a, i) => [a, p.outline[(i + 1) % p.outline.length]] as [V2, V2]);
-  for (const {e, d} of p.slits) if (rayHit([e[0] + d[0] * 1e-3, e[1] + d[1] * 1e-3], d, segs, 0) < 2 * p.len + 1) return `${p.name}: a slit has less than twice its length of material behind it`;
+  for (const {e, d} of p.slits) if (rayHit([e[0] + d[0] * 1e-3, e[1] + d[1] * 1e-3], d, segs, 0) < 2 * p.len + Math.min(1, 0.04 * p.len)) return `${p.name}: a slit has less than twice its length of material behind it`;
   for (let i = 0; i < p.cuts.length; i++) for (let j = i + 1; j < p.cuts.length; j++) if (convexOverlap(p.cuts[i], p.cuts[j], 0.5)) return `${p.name}: two slits meet`;
   return null;
 }

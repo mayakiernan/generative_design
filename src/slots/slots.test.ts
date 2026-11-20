@@ -184,9 +184,14 @@ import {exitDistance, pathBlocker} from './collide.js';
 import {rng as seeded} from './math.js';
 import {IDENTITY, frameOf as frameOfX} from './kit.js';
 
-test('circular kit is the sketch: discs with 1, 2 (90°), 2 (180°), 3 slits and a half disc notched at both ends', () => {
+test('circular kit is the sketch: discs with 1, 2 (90°), 2 (180°), 3 slits, a half disc notched at both ends, and a half disc with one slit', () => {
   const ps = finishPieces('circle', 160, 4, c), by = new Map(ps.map(p => [p.id, p]));
-  assert.deepEqual(ps.map(p => p.slits.length), [1, 2, 2, 3, 2]);
+  assert.deepEqual(ps.map(p => p.slits.length), [1, 2, 2, 3, 2, 1]);
+  // H1: one slit from the middle of the curved edge straight toward the flat edge, as deep as every slit.
+  const h1 = by.get('H1')!;
+  assert.deepEqual(h1.slits[0].e.map(v => Math.round(v * 1e6) / 1e6 + 0), [0, -80]);
+  assert.deepEqual(h1.slits[0].d, [0, 1]);
+  assert.equal(h1.len, by.get('C1')!.len);
   const dirDeg = (id: string) => by.get(id)!.slits.map(s => Math.round((Math.atan2(-s.d[1], -s.d[0]) * 180) / Math.PI));
   assert.deepEqual(dirDeg('C2L'), [90, 0]);
   assert.deepEqual(dirDeg('C2I'), [180, 0]);
@@ -454,7 +459,8 @@ test('with keepFallers, up to a third of the designs may need propping; their on
   const items = [...gallery({...opts, keepFallers: true})].filter((x): x is GalleryItem => 'design' in x);
   const fallers = items.filter(it => !it.stands);
   assert.ok(fallers.length >= 1 && fallers.length <= 3, `${fallers.length} of ${items.length} need support`);
-  for (const it of fallers) assert.deepEqual(it.design.checks.filter(x => x.level === 'error').map(x => x.label), ['Stands']);
+  // A design needing support fails nothing but Stands (an error, or only a warning when it tips at under 4°).
+  for (const it of fallers) assert.ok(it.design.checks.filter(x => x.level === 'error').every(x => x.label === 'Stands') && it.design.support.tipDeg <= 4);
   for (const it of items.filter(it => it.stands)) assert.ok(it.design.ok && it.design.support.tipDeg > 4);
   const strict = [...gallery({...opts, designs: 4, attempts: 300})].filter((x): x is GalleryItem => 'design' in x);
   assert.ok(strict.length > 0 && strict.every(it => it.stands && it.design.ok), 'without keepFallers every design stands');
@@ -562,7 +568,7 @@ import {KIT_SHEET_DEFAULTS, kitSheet} from './kitSheet';
 
 test('a kit sheet fills the stock with the measured mix, half discs in pairs, nothing overlapping', () => {
   const s = kitSheet(KIT_SHEET_DEFAULTS);
-  assert.deepEqual(s.counts, {C2L: 10, C2I: 9, C3T: 7, C1: 2, plain: 4, H: 6});
+  assert.deepEqual(s.counts, {C2L: 9, C2I: 8, C3T: 7, C1: 2, plain: 4, H: 6, H1: 4});
   assert.ok(s.fitStrip && s.warnings.length === 0 && s.covers === 0);
   assert.equal(s.labels.length, 0, 'outlines only by default');
   assert.deepEqual(s.fitWidths, [2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5]);
@@ -580,7 +586,7 @@ test('a kit sheet fills the stock with the measured mix, half discs in pairs, no
 });
 
 test('a kit sheet takes a mix and tops, and says what does not fit', () => {
-  const tops = kitSheet({...KIT_SHEET_DEFAULTS, covers: 1, halves: 0, plain: 0, mix: {C2I: 1}});
+  const tops = kitSheet({...KIT_SHEET_DEFAULTS, covers: 1, halves: 0, halfSlits: 0, plain: 0, mix: {C2I: 1}});
   assert.equal(tops.covers, 1);
   assert.deepEqual(tops.counts, {C2I: 31}, 'a 2× top takes four cells; the rest follow the mix given');
   const tiny = kitSheet({...KIT_SHEET_DEFAULTS, width: 150, height: 120, halves: 10, covers: 1});

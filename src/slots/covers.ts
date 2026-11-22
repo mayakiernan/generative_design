@@ -40,7 +40,7 @@ function margin(poly: V2[], q: V2) {
   return m;
 }
 
-const apothem = (outline: V2[]) => Math.min(...outline.map((a, i) => {
+export const apothem = (outline: V2[]) => Math.min(...outline.map((a, i) => {
   const b = outline[(i + 1) % outline.length];
   return Math.abs(a[0] * b[1] - b[0] * a[1]) / Math.hypot(b[0] - a[0], b[1] - a[1]);
 }));
@@ -88,7 +88,7 @@ function seat(patches: Patch[], outline: V2[], minMargin: number) {
 }
 
 /** The highest level spot on top of the design where the cover's centre sits at least `minMargin` inside its contacts. */
-function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
+export function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
   const faces = hullFaces(panels.flatMap(panelVertices))
     .filter(f => f.n[2] >= Math.cos((MAX_TILT_DEG * Math.PI) / 180))
     .sort((a, b) => Math.max(...b.pts.map(p => p[2])) - Math.max(...a.pts.map(p => p[2])));
@@ -174,7 +174,7 @@ export function coverDesign(g: Grown, makeCover: (scale: number) => Piece, t: nu
 }
 
 /** Width of a convex polygon: its least extent across any of its edges. */
-function minWidth(poly: V2[]): number {
+export function minWidth(poly: V2[]): number {
   let w = Infinity;
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]);

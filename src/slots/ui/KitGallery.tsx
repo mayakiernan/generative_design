@@ -302,7 +302,7 @@ export function KitGallery() {
   );
 }
 
-function DesignDetail({item, index, name: title, fill, onClose}: {item: GalleryItem; index: number; name?: string; fill: string; onClose: () => void}) {
+export function DesignDetail({item, index, name: title, fill, onClose}: {item: GalleryItem; index: number; name?: string; fill: string; onClose: () => void}) {
   const d = item.design, n = d.steps.length;
   const [step, setStep] = useState(n);
   const [playing, setPlaying] = useState(false);

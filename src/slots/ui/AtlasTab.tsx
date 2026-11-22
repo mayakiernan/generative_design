@@ -27,7 +27,7 @@ type Order = 'novel' | 'useful';
 interface Shown {e: AtlasEntry; legal: boolean}
 
 /** Axonometric drawing straight from the lattice: each disc a shaded circle with its slits, the top last. */
-function FormThumb({e, pitch, R}: {e: AtlasEntry; pitch: number; R: number}) {
+export function FormThumb({e, pitch, R}: {e: AtlasEntry; pitch: number; R: number}) {
   const view = useMemo(() => {
     const az = -0.65, el = 0.5, dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const r: V3 = [Math.cos(az), Math.sin(az), 0], w: V3 = [Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)];

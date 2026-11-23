@@ -16,6 +16,8 @@ cover: Optional image URL, shown above the post and in the list
 The post itself, in Markdown.
 ```
 
-Posts are listed newest first by `date`. The Markdown supported: `#` headings, paragraphs, `-` and `1.` lists, `>` quotes, `**bold**`, `*italic*`, `` `code` `` and fenced code blocks, `[links](url)`, `![images](url)` and `---` rules. Images can go in `studio/blog/` next to the page and be linked as `./name.jpg`.
+Posts are listed newest first by `date`. The Markdown supported: `#` headings, paragraphs, `-` and `1.` lists, `>` quotes, `**bold**`, `*italic*`, `` `code` `` and fenced code blocks, `[links](url)`, `![images](url)` and `---` rules.
+
+A post's images and videos go in a folder named after it, `posts/<address>/`, and are linked as `./<address>/name.jpg` (the cover too). The build bundles them. An `![image](...)` whose file is `.mp4` or `.webm` plays on its own as a muted, looping video with controls.
 
 Then rebuild and deploy (`npm run studio:deploy`).

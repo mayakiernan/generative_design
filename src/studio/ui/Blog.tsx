@@ -4,8 +4,11 @@ import {StudioNav} from './Nav';
 
 // Every Markdown file in src/studio/blog/posts/ is a post; its file name (without .md) is its address (?p=name).
 const FILES = import.meta.glob('/src/studio/blog/posts/*.md', {query: '?raw', import: 'default', eager: true}) as Record<string, string>;
+// A post's images and videos sit in a folder named after it and are written ./<name>/<file>; the build bundles them.
+const MEDIA = import.meta.glob('/src/studio/blog/posts/*/*.{png,jpg,jpeg,webp,gif,svg,mp4,webm}', {query: '?url', import: 'default', eager: true}) as Record<string, string>;
+const media = (url: string) => MEDIA[`/src/studio/blog/posts/${url.replace(/^\.\//, '')}`] ?? url;
 const POSTS: Post[] = Object.entries(FILES)
-  .map(([path, raw]) => parsePost(path.split('/').pop()!.replace(/\.md$/, ''), raw))
+  .map(([path, raw]) => parsePost(path.split('/').pop()!.replace(/\.md$/, ''), raw, media))
   .sort((a, b) => b.date.localeCompare(a.date));
 
 const current = () => new URLSearchParams(location.search).get('p');

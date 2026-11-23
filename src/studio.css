@@ -266,6 +266,7 @@ body{min-height:100svh;background-color:var(--pp-paper);background-image:var(--p
 .pb-body p,.pb-body ul,.pb-body ol,.pb-body blockquote,.pb-body pre{margin:0 0 1.1em}
 .pb-body a{color:inherit;text-decoration-color:var(--pp-purple);text-decoration-thickness:2px;text-underline-offset:3px}
 .pb-body img{max-width:100%;height:auto;display:block;margin:1.4em 0}
+.pb-body video{display:block;max-width:100%;max-height:78vh;margin:1.4em auto;background:#ebebe7}
 .pb-body blockquote{margin-left:0;padding-left:18px;border-left:3px solid var(--pp-yellow);color:#4c4c48}
 .pb-body code{font:14px 'SFMono-Regular',Consolas,monospace;background:#ebebe7;padding:1px 4px}
 .pb-body pre{background:#ebebe7;padding:14px 16px;overflow:auto}

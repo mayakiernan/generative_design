@@ -10,10 +10,20 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 /** Only web and relative links: no javascript: or data: URLs. */
 const safeUrl = (u: string) => (/^(https?:\/\/|\/|\.{0,2}\/|#)/i.test(u) || !/^[a-z]+:/i.test(u) ? u : '#');
 
-function inline(s: string): string {
+/** Maps a URL written in a post (such as `./my-post/photo.jpg`) to the one the page serves. */
+export type MediaUrl = (url: string) => string;
+const VIDEO = /\.(mp4|webm|mov)$/i;
+
+function inline(s: string, media: MediaUrl): string {
   let out = esc(s);
   out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
-  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, url) => `<img src="${esc(safeUrl(url))}" alt="${alt}" loading="lazy" />`);
+  // An image whose file is a video plays inline like a GIF: on its own, muted and looping, with controls.
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, url) => {
+    const src = esc(safeUrl(media(url)));
+    return VIDEO.test(url)
+      ? `<video src="${src}" aria-label="${alt}" controls muted loop playsinline autoplay></video>`
+      : `<img src="${src}" alt="${alt}" loading="lazy" />`;
+  });
   out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, text, url) => {
     const href = safeUrl(url), external = /^https?:\/\//.test(href);
     return `<a href="${esc(href)}"${external ? ' target="_blank" rel="noopener"' : ''}>${text}</a>`;
@@ -23,13 +33,13 @@ function inline(s: string): string {
   return out;
 }
 
-export function renderMarkdown(src: string): string {
+export function renderMarkdown(src: string, media: MediaUrl = u => u): string {
   const lines = src.replace(/\r\n/g, '\n').split('\n'), out: string[] = [];
   let para: string[] = [], list: {tag: 'ul' | 'ol'; items: string[]} | null = null, quote: string[] = [];
   const flush = () => {
-    if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; }
-    if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`); list = null; }
-    if (quote.length) { out.push(`<blockquote><p>${inline(quote.join(' '))}</p></blockquote>`); quote = []; }
+    if (para.length) { out.push(`<p>${inline(para.join(' '), media)}</p>`); para = []; }
+    if (list) { out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i, media)}</li>`).join('')}</${list.tag}>`); list = null; }
+    if (quote.length) { out.push(`<blockquote><p>${inline(quote.join(' '), media)}</p></blockquote>`); quote = []; }
   };
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -42,7 +52,7 @@ export function renderMarkdown(src: string): string {
     }
     if (!line.trim()) { flush(); continue; }
     const h = /^(#{1,4})\s+(.*)$/.exec(line);
-    if (h) { flush(); const n = Math.min(4, h[1].length + 1); out.push(`<h${n}>${inline(h[2])}</h${n}>`); continue; }
+    if (h) { flush(); const n = Math.min(4, h[1].length + 1); out.push(`<h${n}>${inline(h[2], media)}</h${n}>`); continue; }
     if (/^(-{3,}|\*{3,})\s*$/.test(line)) { flush(); out.push('<hr />'); continue; }
     const q = /^>\s?(.*)$/.exec(line);
     if (q) { if (para.length || list) flush(); quote.push(q[1]); continue; }
@@ -63,14 +73,14 @@ export function renderMarkdown(src: string): string {
 }
 
 /** A post file: `---` front matter (title, date as YYYY-MM-DD, summary, optional author and cover) then Markdown. */
-export function parsePost(slug: string, raw: string): Post {
+export function parsePost(slug: string, raw: string, media: MediaUrl = u => u): Post {
   const m = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(raw.replace(/\r\n/g, '\n'));
   const meta: Record<string, string> = {};
   for (const line of (m?.[1] ?? '').split('\n')) {
     const kv = /^(\w+):\s*(.*)$/.exec(line);
     if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '');
   }
-  return {slug, title: meta.title ?? slug, date: meta.date ?? '', summary: meta.summary ?? '', author: meta.author, cover: meta.cover, html: renderMarkdown(m?.[2] ?? raw)};
+  return {slug, title: meta.title ?? slug, date: meta.date ?? '', summary: meta.summary ?? '', author: meta.author, cover: meta.cover && media(meta.cover), html: renderMarkdown(m?.[2] ?? raw, media)};
 }
 
 /** "22 November 2026" from "2026-11-22". */

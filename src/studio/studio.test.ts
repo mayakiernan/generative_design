@@ -108,6 +108,11 @@ test('blog posts: front matter, Markdown, and nothing unsafe gets through', asyn
   assert.ok(p.html.includes('href="https://example.com" target="_blank"'), p.html);
   const bad = renderMarkdown('<script>alert(1)</script> [x](javascript:alert(1))');
   assert.ok(!bad.includes('<script') && !bad.includes('javascript:'), bad);
+  const served = (u: string) => u.replace('./first/', '/assets/');
+  const withMedia = parsePost('first', '---\ntitle: T\ndate: 2026-11-30\ncover: ./first/cover.jpg\n---\n![A photo](./first/a.jpg)\n\n![A clip](./first/b.mp4)', served);
+  assert.equal(withMedia.cover, '/assets/cover.jpg');
+  assert.ok(withMedia.html.includes('<img src="/assets/a.jpg" alt="A photo"'), withMedia.html);
+  assert.ok(withMedia.html.includes('<video src="/assets/b.mp4" aria-label="A clip" controls muted loop playsinline'), withMedia.html);
 });
 
 test('hold steps: one entry per build step, a flat disc alone needs no hand, and judged designs carry them', async () => {

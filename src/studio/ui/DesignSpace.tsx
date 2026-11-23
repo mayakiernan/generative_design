@@ -1,7 +1,8 @@
-import {useEffect, useRef, useState} from 'react';
+import {useState} from 'react';
 import {pinnedCounts} from '../pinnedCounts';
 import type {CountRow} from '../counts';
-import {Mark} from './Shapes';
+import {DownArrow, Mark} from './Shapes';
+import {PossibleLink} from './Possible';
 
 /** The piece counts the scroll steps through; the circle grows at each. */
 const STEPS = [5, 10, 30];
@@ -18,38 +19,24 @@ export function writtenOut(row: CountRow): string {
 }
 
 /**
- * The third beat: how big the design space is. A sticky stage holds one circle; each step of scrolling gives more
- * pieces and grows the circle, until it covers the page.
+ * The third beat: how big the design space is. One screen holds one circle; each press of the down arrow gives
+ * more pieces and grows the circle, until it covers the page; after the last step the arrow moves on.
  */
 export function DesignSpace() {
   const rows = pinnedCounts();
-  const section = useRef<HTMLElement>(null);
   const [step, setStep] = useState(0);
-  useEffect(() => {
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      const el = section.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect(), run = r.height - innerHeight;
-      const p = run > 0 ? Math.min(1, Math.max(0, -r.top / run)) : 0;
-      setStep(Math.min(STEPS.length - 1, Math.floor(p * STEPS.length)));
-    };
-    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
-    update();
-    addEventListener('scroll', onScroll, {passive: true});
-    addEventListener('resize', onScroll);
-    return () => { removeEventListener('scroll', onScroll); removeEventListener('resize', onScroll); cancelAnimationFrame(frame); };
-  }, []);
   if (!rows.length) return null;
   const n = STEPS[step], row = rows.find(r => r.n === n)!;
   return (
-    <section ref={section} className="pp-space" data-step={step} style={{['--steps' as string]: STEPS.length}} aria-label="How many designs">
+    <section className="pp-space" data-step={step} aria-label="How many designs">
       <div className="pp-space-stage">
         <Mark className="pp-slide-mark" />
         <div className="pp-space-circle" aria-hidden />
         <p className="pp-space-have">I have <b>{n}</b> circles<br />I actually have</p>
         <p className="pp-space-count" key={n}><b>{writtenOut(row)}</b><br />possibilities</p>
+        {step < STEPS.length - 1
+          ? <DownArrow label={`Show ${STEPS[step + 1]} circles`} onClick={() => { setStep(step + 1); return true; }} />
+          : <div className="pp-space-go"><PossibleLink /></div>}
       </div>
     </section>
   );

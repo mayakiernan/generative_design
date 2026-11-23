@@ -50,7 +50,7 @@ export function Atlas() {
   const [results, setResults] = useState<Judged[]>([]);
   const [open, setOpen] = useState<number | null>(null);
   // Agent mode: Claude designs the thing itself, piece by piece, instead of searching the atlas.
-  const [agent, setAgent] = useState(() => typeof location !== 'undefined' && location.hash === '#agent');
+  const [agent, setAgent] = useState(() => typeof location !== 'undefined' && (location.hash === '#custom' || location.hash === '#agent'));
   const [brief, setBrief] = useState('a car');
   const [agentReq, setAgentReq] = useState<AgentRequest | null>(null);
   /** Isometric renders by design key and diameter, as image URLs. */
@@ -95,7 +95,7 @@ export function Atlas() {
     if (agent) {
       const what = brief.trim();
       if (!what) { setOutcome({kind: 'error', text: 'Say what to make.'}); return; }
-      if (!(inches >= MIN_IN && inches <= AGENT_MAX_IN)) { setOutcome({kind: 'error', text: `The agent works with discs from ${MIN_IN} to ${AGENT_MAX_IN} in across.`}); setAgentReq(null); return; }
+      if (!(inches >= MIN_IN && inches <= AGENT_MAX_IN)) { setOutcome({kind: 'error', text: `Custom designs work with discs from ${MIN_IN} to ${AGENT_MAX_IN} in across.`}); setAgentReq(null); return; }
       setOutcome({kind: 'idle'});
       setAgentReq({id: Date.now(), prompt: what, discMm: Math.round(inches * IN * 10) / 10, circles: Math.max(1, Math.round(circles))});
       scrollTo({top: 0, behavior: 'smooth'});
@@ -128,7 +128,7 @@ export function Atlas() {
   // The drawn disc grows with the diameter asked for, within the panel.
   const discScale = Math.min(1, Math.max(0.55, 0.55 + ((inches - MIN_IN) / (24 - MIN_IN)) * 0.45));
   const searched = outcome.kind !== 'idle' || (agent && !!agentReq);
-  const switchTo = (a: boolean) => { setAgent(a); history.replaceState(null, '', a ? '#agent' : location.pathname + location.search); };
+  const switchTo = (a: boolean) => { setAgent(a); history.replaceState(null, '', a ? '#custom' : location.pathname + location.search); };
   const submit = (e: FormEvent) => { e.preventDefault(); go(); };
 
   const fields = {
@@ -138,10 +138,10 @@ export function Atlas() {
       ? <input className="pa-text" type="text" value={brief} onChange={e => setBrief(e.target.value)} placeholder="a car, a giraffe…" aria-label="What to make" maxLength={200} />
       : <input className="pa-text" type="text" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="purpose…" aria-label="Purpose" />,
     how: (
-      <div className="pa-mode ag-switch" role="radiogroup" aria-label="Search the atlas or ask the agent">
+      <div className="pa-mode ag-switch" role="radiogroup" aria-label="Search the atlas or make a custom design">
         <button type="button" role="radio" aria-checked={!agent} className={!agent ? 'on' : ''} onClick={() => switchTo(false)}>Atlas search</button>
         <span aria-hidden>/</span>
-        <button type="button" role="radio" aria-checked={agent} className={agent ? 'on' : ''} onClick={() => switchTo(true)}>Agent</button>
+        <button type="button" role="radio" aria-checked={agent} className={agent ? 'on' : ''} onClick={() => switchTo(true)}>Custom</button>
       </div>
     ),
     mode: (
@@ -168,8 +168,8 @@ export function Atlas() {
             <label className="pa-line">I have {fields.circles} circles</label>
             <label className="pa-line pa-purpose">{agent ? 'Make me' : 'The purpose of this is'} {fields.purpose}</label>
             {agent ? <p className="ag-hint">The model designs it piece by piece, checks that it stands and can be built, and looks at each version. A run takes a few minutes.</p> : fields.mode}
-            <button className="pa-go" type="submit" disabled={!agent && !run}>
-              <span>{agent ? 'Agent' : run ? 'Atlas' : 'Loading…'}</span>
+            <button className={`pa-go${agent ? ' pa-go-bare' : ''}`} type="submit" disabled={!agent && !run} aria-label={agent ? 'Make it' : undefined}>
+              {!agent && <span>{run ? 'Atlas' : 'Loading…'}</span>}
               <DotArrow />
             </button>
           </div>
@@ -177,7 +177,7 @@ export function Atlas() {
       ) : (
         <form className="pa-bar" onSubmit={submit}>
           <a className="pa-home" href="../" aria-label="Probable Pieces home"><Mark /></a>
-          <button className="pa-bar-title" type="submit" disabled={!agent && !run} title={agent ? 'Design again' : 'Search again'}>{agent ? 'Agent' : 'Atlas'}</button>
+          <button className="pa-bar-title" type="submit" disabled={!agent && !run} title={agent ? 'Design again' : 'Search again'} aria-label={agent ? 'Design again' : undefined}>{agent ? <DotArrow /> : 'Atlas'}</button>
           <div className="pa-bar-fields">
             {fields.how}
             <label className="pa-bar-purpose">{fields.purpose}</label>

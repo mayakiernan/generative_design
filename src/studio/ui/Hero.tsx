@@ -1,4 +1,4 @@
-import {Shape, SHAPE_NAMES, type ShapeKind} from './Shapes';
+import {DownArrow, Shape, SHAPE_NAMES, type ShapeKind} from './Shapes';
 
 /**
  * The opening of the scroll, split down the middle: the Probable Pieces poster filling the left half in yellow, the
@@ -25,15 +25,20 @@ export function Hero() {
               <span key={i} aria-hidden style={{left: `${x}%`, top: `${y}%`, ['--turn' as string]: `${deg}deg`, ['--i' as string]: i}}>{ch}</span>
             ))}
           </h1>
+          <p className="pp-credit">Maya Kiernan &amp;<br />Andrew Gorovoy</p>
         </div>
-        <p className="pp-credit">Maya Kiernan &amp;<br />Andrew Gorovoy</p>
       </div>
       <div className="pp-hero-shapes"><SlotShapes /></div>
+      <nav className="pp-head" aria-label="Pages">
+        <a href="atlas/">Atlas</a>
+        <a href="blog/">Blog</a>
+      </nav>
+      <DownArrow />
     </section>
   );
 }
 
-const HERO_SHAPES: ShapeKind[] = ['c1', 'c2l', 'c2i', 'c3t', 'disc', 'half'];
+const HERO_SHAPES: ShapeKind[] = ['c1', 'c2l', 'c2i', 'c3t', 'half'];
 
 /** The slot shapes: one slit, an L, two opposite slits, a T, a plain disc and a half disc. */
 function SlotShapes() {

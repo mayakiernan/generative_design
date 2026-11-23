@@ -70,3 +70,19 @@ export function DotArrow({className = 'pa-arrow'}: {className?: string}) {
   return <svg className={className} viewBox="-3 -18 37 36" aria-hidden>{dots.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={1.9} />)}</svg>;
 }
 
+
+/**
+ * The way on to the next part of the page: the dotted arrow turned to point down. `onClick` can take the step
+ * instead (return true to stay put); otherwise it scrolls to the section after the one it sits in.
+ */
+export function DownArrow({label = 'Next', onClick, className = ''}: {label?: string; onClick?: () => boolean | void; className?: string}) {
+  return (
+    <button type="button" className={`pp-down ${className}`} aria-label={label} onClick={e => {
+      if (onClick?.()) return;
+      const next = e.currentTarget.closest('section')?.nextElementSibling;
+      next?.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+    }}>
+      <DotArrow className="pp-down-arrow" />
+    </button>
+  );
+}

@@ -1,17 +1,24 @@
 import {DotArrow} from './Shapes';
 
-/** The end of the scroll: the way into the atlas. */
+/** The way into the atlas, shown at the last step of the design-space count. */
+export function PossibleLink() {
+  return (
+    <a className="pp-possible-link" href="atlas/">
+      <span>See what’s possible</span>
+      <DotArrow className="pp-possible-arrow" />
+    </a>
+  );
+}
+
+/** The foot of the scroll: the other pages. */
 export function Possible() {
   return (
-    <section className="pp-possible" aria-label="See what's possible">
-      <a className="pp-possible-link" href="atlas/">
-        <span>See what’s possible</span>
-        <DotArrow className="pp-possible-arrow" />
-      </a>
-      <nav className="pp-foot" aria-label="More">
+    <footer className="pp-possible" aria-label="More">
+      <nav className="pp-foot">
+        <a href="atlas/">Atlas</a>
         <a href="forms/">Form counts</a>
         <a href="blog/">Blog</a>
       </nav>
-    </section>
+    </footer>
   );
 }

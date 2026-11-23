@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Mark, Shape, type ShapeKind} from './Shapes';
+import {DownArrow, Mark, Shape, type ShapeKind} from './Shapes';
 
 /** Every piece of the kit a plain circle becomes once it is slotted, in the order they fan out. */
 const SET: ShapeKind[] = ['c1', 'c2l', 'c2i', 'c3t', 'half'];
@@ -22,6 +22,7 @@ export function PieceStory() {
         ))}
         <span className="pp-hint" aria-hidden><b>&gt;</b> circle</span>
       </button>
+      <DownArrow />
     </section>
   );
 }

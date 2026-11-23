@@ -78,8 +78,25 @@ function getRenderer(): THREE.WebGLRenderer {
   return renderer;
 }
 
+/**
+ * Camera directions (three.js is y up; designs are z up, turned so design −y faces +z). 'iso' is the atlas cards'
+ * view from the front right, above; the others look along an axis, as the agent mode's four views do.
+ */
+export type IsoView = 'iso' | 'front' | 'side' | 'top';
+const VIEWS: Record<IsoView, {dir: [number, number, number]; up: [number, number, number]}> = {
+  iso: {dir: [1, 0.82, 1], up: [0, 1, 0]},
+  front: {dir: [0, 0, 1], up: [0, 1, 0]},
+  side: {dir: [1, 0, 0], up: [0, 1, 0]},
+  top: {dir: [0, 1, 0], up: [0, 0, -1]},
+};
+
 /** Render one design isometrically (from the front right, above) and return it as a PNG data URL. */
 export function renderIso(job: IsoJob): string {
+  return renderPanels(panelsOf(job));
+}
+
+/** Render panels (z up) from one of VIEWS, grey with black rims and slits on a clear background, as a PNG data URL. */
+export function renderPanels(panels: Panel[], view: IsoView = 'iso'): string {
   const r = getRenderer(), scene = new THREE.Scene(), disposables: {dispose(): void}[] = [];
   scene.add(new THREE.AmbientLight(0xffffff, 1.35));
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -94,7 +111,7 @@ export function renderIso(job: IsoJob): string {
   const cut = new THREE.MeshStandardMaterial({color: CUT, roughness: 0.8});
   const lineMat = new THREE.LineBasicMaterial({color: CUT, transparent: true, opacity: 0.8});
   disposables.push(cut, lineMat);
-  panelsOf(job).forEach((p, i) => {
+  panels.forEach((p, i) => {
     const {mesh, lines} = panelGeometry(p);
     const face = new THREE.MeshStandardMaterial({color: p.role === 'top' ? TOP : GREYS[i % GREYS.length], roughness: 0.8});
     group.add(new THREE.Mesh(mesh, [face, cut]), new THREE.LineSegments(lines, lineMat));
@@ -105,10 +122,10 @@ export function renderIso(job: IsoJob): string {
 
   // An isometric camera, framed to the design's bounds as seen from that direction.
   const box = new THREE.Box3().setFromObject(group), centre = box.getCenter(new THREE.Vector3());
-  const dir = new THREE.Vector3(1, 0.82, 1).normalize(), reach = box.getSize(new THREE.Vector3()).length();
+  const dir = new THREE.Vector3(...VIEWS[view].dir).normalize(), reach = box.getSize(new THREE.Vector3()).length();
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, reach * 4);
   cam.position.copy(centre).addScaledVector(dir, reach * 2);
-  cam.up.set(0, 1, 0);
+  cam.up.set(...VIEWS[view].up);
   cam.lookAt(centre);
   cam.updateMatrixWorld(true);
   const inv = cam.matrixWorldInverse;

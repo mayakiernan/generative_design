@@ -15,7 +15,7 @@
     "atlas": "node --import tsx scripts/atlas.ts",
     "atlas:free": "node --import tsx scripts/atlas-free.ts",
     "slotwright": "node --env-file-if-exists=.env.local --import tsx scripts/slotwright.ts",
-    "studio:build": "vite build --config vite.studio.config.ts && cp scripts/password.ts deploy/slot-studio/password.ts",
+    "studio:build": "vite build --config vite.studio.config.ts && cp scripts/password.ts deploy/slot-studio/password.ts && node scripts/slotwright/bundle-api.mjs",
     "studio:deploy": "npm run studio:build && cd deploy/slot-studio && vercel deploy --prod --yes"
   },
   "dependencies": {

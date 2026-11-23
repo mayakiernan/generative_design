@@ -271,3 +271,31 @@ body{min-height:100svh;background-color:var(--pp-paper);background-image:var(--p
 .pb-body pre{background:#ebebe7;padding:14px 16px;overflow:auto}
 .pb-body pre code{background:none;padding:0}
 .pb-body hr{border:0;border-top:1px solid #d9d8d2;margin:2em 0}
+
+/* ---------- agent mode: Claude designs it, piece by piece ---------- */
+.ag-switch{margin-bottom:1vh}
+.ag-hint{margin:0;max-width:30em;font:400 13px/1.5 var(--pp-body);color:#55554f}
+.ag-meta{color:#8a8983}
+.ag-stop{margin-left:14px;border:1.5px solid var(--pp-ink);background:none;padding:2px 10px;font:700 11px var(--pp-grotesk);text-transform:uppercase;letter-spacing:.04em;color:var(--pp-ink);cursor:pointer}
+.ag-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:clamp(16px,3vw,40px);align-items:start}
+.ag-view{margin:0;position:relative;display:grid;gap:14px}
+.ag-views{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#ecebe6;border:1px solid #ecebe6}
+.ag-tile{position:relative;aspect-ratio:1;background:#fff}
+.ag-tile img{position:absolute;inset:9%;width:82%;height:82%;object-fit:contain}
+.ag-tile span{position:absolute;left:10px;top:9px;font:500 11px var(--pp-grotesk);text-transform:uppercase;letter-spacing:.03em;color:#77776f}
+.ag-claude{width:100%;height:auto;display:block;background:#fff;border:1px solid #ecebe6}
+.ag-wait{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:24px;font:400 13px/1.5 var(--pp-body);color:#8a8983;text-align:center}
+.ag-toggle{display:flex;gap:4px}
+.ag-toggle button{border:1px solid #d6d5cf;background:#fff;padding:5px 10px;font:500 11px var(--pp-grotesk);text-transform:uppercase;letter-spacing:.03em;color:var(--pp-ink);cursor:pointer}
+.ag-toggle button.on{background:var(--pp-ink);border-color:var(--pp-ink);color:#fff}
+.ag-view figcaption{font:400 14px/1.5 var(--pp-body);color:var(--pp-ink)}
+.ag-open{margin-top:0;font-size:clamp(22px,2.4vw,32px)}
+.ag-log{list-style:none;margin:0;padding:0;max-height:min(78vh,900px);overflow:auto;display:flex;flex-direction:column;gap:8px;font:400 13px/1.45 var(--pp-body)}
+.ag-log li{padding:0 0 8px;border-bottom:1px solid #e6e5df}
+.ag-note{color:var(--pp-ink)}
+.ag-tool{font:700 11px var(--pp-grotesk)!important;text-transform:uppercase;letter-spacing:.04em;color:#8a8983}
+.ag-check{font-weight:700;color:#3d6b2f}
+.ag-check.bad{color:#a0330d}
+.ag-busy{animation:ag-pulse 1.4s ease-in-out infinite}
+@keyframes ag-pulse{50%{opacity:.35}}
+@media (max-width:760px){.ag-body{grid-template-columns:1fr}.ag-log{max-height:none}}

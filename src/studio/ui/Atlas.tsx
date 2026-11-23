@@ -14,6 +14,8 @@ import {DotArrow, Mark} from './Shapes';
 import {Detail} from './Detail';
 import type {StepHold} from '../../slots/atlas/holds';
 import {queueIso} from './isoThumbs';
+import {AgentRun, type AgentRequest} from './AgentRun';
+import {STUDIO} from '../../slotwright/template';
 
 // The pinned form atlas run (query.ts STUDIO_RUN), fetched when the page opens.
 const RUNS = import.meta.glob('/atlas-runs/*/atlas.json', {query: '?url', import: 'default', eager: true}) as Record<string, string>;
@@ -23,6 +25,8 @@ const IN = 25.4;
 /** Inches, to the nearest half. */
 const inch = (mm: number) => `${Math.round((mm / IN) * 2) / 2}`;
 const MIN_IN = Math.ceil((MIN_DIAMETER / IN) * 2) / 2;
+/** The agent's largest disc (the SDK's 600 mm), in half inches. */
+const AGENT_MAX_IN = Math.floor((STUDIO.maxDisc / IN) * 2) / 2;
 
 interface Query {spec: FunctionSpec; material: Material; stable: boolean}
 type Outcome =
@@ -45,6 +49,10 @@ export function Atlas() {
   const [outcome, setOutcome] = useState<Outcome>({kind: 'idle'});
   const [results, setResults] = useState<Judged[]>([]);
   const [open, setOpen] = useState<number | null>(null);
+  // Agent mode: Claude designs the thing itself, piece by piece, instead of searching the atlas.
+  const [agent, setAgent] = useState(() => typeof location !== 'undefined' && location.hash === '#agent');
+  const [brief, setBrief] = useState('a car');
+  const [agentReq, setAgentReq] = useState<AgentRequest | null>(null);
   /** Isometric renders by design key and diameter, as image URLs. */
   const [iso, setIso] = useState<Record<string, string>>({});
   const worker = useRef<Worker | null>(null);
@@ -84,6 +92,15 @@ export function Atlas() {
   }
 
   function go() {
+    if (agent) {
+      const what = brief.trim();
+      if (!what) { setOutcome({kind: 'error', text: 'Say what to make.'}); return; }
+      if (!(inches >= MIN_IN && inches <= AGENT_MAX_IN)) { setOutcome({kind: 'error', text: `The agent works with discs from ${MIN_IN} to ${AGENT_MAX_IN} in across.`}); setAgentReq(null); return; }
+      setOutcome({kind: 'idle'});
+      setAgentReq({id: Date.now(), prompt: what, discMm: Math.round(inches * IN * 10) / 10, circles: Math.max(1, Math.round(circles))});
+      scrollTo({top: 0, behavior: 'smooth'});
+      return;
+    }
     if (!run || !pools) return;
     const heard = parsePurpose(purpose);
     setResults([]);
@@ -110,13 +127,23 @@ export function Atlas() {
   }, [open, q, results, kit, D, label, ids]);
   // The drawn disc grows with the diameter asked for, within the panel.
   const discScale = Math.min(1, Math.max(0.55, 0.55 + ((inches - MIN_IN) / (24 - MIN_IN)) * 0.45));
-  const searched = outcome.kind !== 'idle';
+  const searched = outcome.kind !== 'idle' || (agent && !!agentReq);
+  const switchTo = (a: boolean) => { setAgent(a); history.replaceState(null, '', a ? '#agent' : location.pathname + location.search); };
   const submit = (e: FormEvent) => { e.preventDefault(); go(); };
 
   const fields = {
     diameter: <input className="pa-num" type="number" min={MIN_IN} max={48} step={0.5} value={inches} onChange={e => setInches(Number(e.target.value))} aria-label="Disc diameter in inches" style={{width: `${String(inches).length + 1.2}ch`}} />,
     circles: <input className="pa-num" type="number" min={1} max={60} value={circles} onChange={e => setCircles(Number(e.target.value))} aria-label="Number of circles" style={{width: `${String(circles).length + 1.2}ch`}} />,
-    purpose: <input className="pa-text" type="text" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="purpose…" aria-label="Purpose" />,
+    purpose: agent
+      ? <input className="pa-text" type="text" value={brief} onChange={e => setBrief(e.target.value)} placeholder="a car, a giraffe…" aria-label="What to make" maxLength={200} />
+      : <input className="pa-text" type="text" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="purpose…" aria-label="Purpose" />,
+    how: (
+      <div className="pa-mode ag-switch" role="radiogroup" aria-label="Search the atlas or ask the agent">
+        <button type="button" role="radio" aria-checked={!agent} className={!agent ? 'on' : ''} onClick={() => switchTo(false)}>Atlas search</button>
+        <span aria-hidden>/</span>
+        <button type="button" role="radio" aria-checked={agent} className={agent ? 'on' : ''} onClick={() => switchTo(true)}>Agent</button>
+      </div>
+    ),
     mode: (
       <div className="pa-mode" role="radiogroup" aria-label="Stable or artistic">
         <button type="button" role="radio" aria-checked={stable} className={stable ? 'on' : ''} onClick={() => setStable(true)}>Stable</button>
@@ -137,11 +164,12 @@ export function Atlas() {
           </div>
           <div className="pa-rule" aria-hidden />
           <div className="pa-right">
+            {fields.how}
             <label className="pa-line">I have {fields.circles} circles</label>
-            <label className="pa-line pa-purpose">The purpose of this is {fields.purpose}</label>
-            {fields.mode}
-            <button className="pa-go" type="submit" disabled={!run}>
-              <span>{run ? 'Atlas' : 'Loading…'}</span>
+            <label className="pa-line pa-purpose">{agent ? 'Make me' : 'The purpose of this is'} {fields.purpose}</label>
+            {agent ? <p className="ag-hint">The model designs it piece by piece, checks that it stands and can be built, and looks at each version. A run takes a few minutes.</p> : fields.mode}
+            <button className="pa-go" type="submit" disabled={!agent && !run}>
+              <span>{agent ? 'Agent' : run ? 'Atlas' : 'Loading…'}</span>
               <DotArrow />
             </button>
           </div>
@@ -149,10 +177,11 @@ export function Atlas() {
       ) : (
         <form className="pa-bar" onSubmit={submit}>
           <a className="pa-home" href="../" aria-label="Probable Pieces home"><Mark /></a>
-          <button className="pa-bar-title" type="submit" disabled={!run} title="Search again">Atlas</button>
+          <button className="pa-bar-title" type="submit" disabled={!agent && !run} title={agent ? 'Design again' : 'Search again'}>{agent ? 'Agent' : 'Atlas'}</button>
           <div className="pa-bar-fields">
+            {fields.how}
             <label className="pa-bar-purpose">{fields.purpose}</label>
-            {fields.mode}
+            {!agent && fields.mode}
             <label className="pa-line"># of {fields.circles}</label>
             <span className="pa-disc pa-disc-small" aria-hidden><span /></span>
             <label className="pa-line">Diameter {fields.diameter} in</label>
@@ -160,7 +189,14 @@ export function Atlas() {
         </form>
       )}
 
-      {searched && (
+      {searched && agent && (
+        <div className="pa-results">
+          {outcome.kind === 'error' && <p className="pa-note bad">{outcome.text}</p>}
+          {agentReq && <AgentRun key={agentReq.id} req={agentReq} />}
+        </div>
+      )}
+
+      {searched && !agent && (
         <div className="pa-results">
           {loadError && <p className="pa-note bad">{loadError}</p>}
           <Status outcome={outcome} found={results.length} />

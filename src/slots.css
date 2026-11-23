@@ -201,6 +201,7 @@ button.primary{border:1px solid #e95319;background:#e95319;color:#fff;border-rad
 .atlas-map-wrap{overflow-x:auto;margin:4px 0 26px}
 .atlas-map{display:grid;grid-template-columns:76px repeat(7,minmax(46px,1fr));gap:4px;max-width:760px;min-width:420px}
 .atlas-map.cols-5{grid-template-columns:76px repeat(5,minmax(58px,1fr));max-width:620px;min-width:380px}
+.atlas-map.cols-6{grid-template-columns:118px repeat(6,minmax(52px,1fr));max-width:700px;min-width:440px}
 .atlas-map .head{color:#92928a;text-align:center;align-self:end;padding-bottom:4px}.atlas-map .corner{text-align:left}
 .atlas-row{display:contents}
 .atlas-map .row-label{font-size:11.5px;color:#55554f;align-self:center}.atlas-map .row-label.muted{color:#b2b0a8}

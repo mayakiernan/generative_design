@@ -89,6 +89,8 @@ export interface Kit {
   overlapMemo: Map<string, boolean>;
   slideMemo: Map<string, boolean>;
   nudgeMemo: Map<string, boolean>;
+  /** No notched half discs (H): forms may use full discs and the one-slit half disc (H1) only. */
+  noNotched?: boolean;
 }
 
 export function makeKit(size = 80, t = 3, clearance = 0.2): Kit {
@@ -204,16 +206,21 @@ function nudgeBlocked(kit: Kit, A: Pose, B: Pose, k: number, nudge: number): boo
  * Discs gravity can pull out: the engine's hold test (stability.ts partHold, 'loose'), on the lattice. A disc is
  * loose if some probe direction pointing down more than a little is free; a disc on the floor cannot go down.
  */
-export function looseDiscs(kit: Kit, form: Form, panels = form.panels(kit)): number[] {
+/**
+ * Discs gravity can pull out. `down` is gravity's direction in the form's own (lattice) frame, and `grounded` which
+ * discs touch the floor, for a form resting some other way than as built (z up).
+ */
+export function looseDiscs(kit: Kit, form: Form, panels = form.panels(kit), down: V3 = [0, 0, -1], grounded?: boolean[]): number[] {
   const nudge = 1.5 + kit.clearance, z0 = Math.min(...panels.map(P => panelBox(P).lo[2])), r = form.hasH ? 2 : 1;
   const out: number[] = [];
+  const along = (v: V3) => v[0] * down[0] + v[1] * down[1] + v[2] * down[2];
   form.discs.forEach((A, i) => {
-    const onGround = panelBox(panels[i]).lo[2] <= z0 + 0.05, near: Pose[] = [];
+    const onGround = grounded ? grounded[i] : panelBox(panels[i]).lo[2] <= z0 + 0.05, near: Pose[] = [];
     for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
       const j = form.at.get(cellKey([A.c[0] + dx, A.c[1] + dy, A.c[2] + dz]));
       if (j !== undefined && j !== i) near.push(form.discs[j]);
     }
-    const free = PROBES.some((v, k) => v[2] < -0.2 && !(onGround && v[2] < -1e-6) && !near.some(B => nudgeBlocked(kit, A, B, k, nudge)));
+    const free = PROBES.some((v, k) => along(v) > 0.2 && !(onGround && along(v) > 1e-6) && !near.some(B => nudgeBlocked(kit, A, B, k, nudge)));
     if (free) out.push(i);
   });
   return out;
@@ -256,6 +263,7 @@ export class Form {
   /** Can `pose` join this form without running into anything? (It need not join anything.) */
   fits(kit: Kit, pose: Pose, skip = -1): boolean {
     if (!pieceId(pose)) return false;
+    if (pose.k === 'H' && kit.noNotched) return false;
     // Two H are never joined notch to notch: the joint barely engages.
     if (pose.k === 'H') for (const d of mouths(pose.m)) {
       const j = this.at.get(cellKey(step(pose.c, d))), Q = j === undefined || j === skip ? null : this.discs[j];

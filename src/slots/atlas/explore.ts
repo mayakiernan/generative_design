@@ -64,6 +64,8 @@ export interface Entry {
   features: Features;
   steps: BuildStep[];
   top: Verdict['top'];
+  /** How it rests, when not as built (judge.ts Verdict.rest). */
+  rest?: number[];
   buildExhausted: boolean;
   /** Mean fingerprint distance to the 15 most similar legal tables seen (refreshed as the archive grows). */
   novelty: number;
@@ -126,6 +128,7 @@ export class Atlas {
 
   /** Judge a form (once per canonical form) and file it. Returns the entry, or null if seen before or too big. */
   add(form: Form): Entry | null {
+    if (this.kit.noNotched && form.hasH) return null;
     if (!form.size || form.size > this.rules.maxDiscs) return null;
     const key = canonicalKey(form);
     if (this.seen.has(key)) return null;
@@ -136,7 +139,7 @@ export class Atlas {
     const novelty = this.legal.novelty(fpv);
     this.ms += performance.now() - t0;
     this.evaluations++;
-    const e: Entry = {key, fails: v.fails, metrics: v.metrics, features: features(this.kit, f, v.metrics, crateBucket(crate)), steps: v.build.steps, top: v.top, buildExhausted: v.build.exhausted, novelty, crate};
+    const e: Entry = {key, fails: v.fails, metrics: v.metrics, features: features(this.kit, f, v.metrics, crateBucket(crate)), steps: v.build.steps, top: v.top, ...(v.rest ? {rest: v.rest} : {}), buildExhausted: v.build.exhausted, novelty, crate};
     this.fp.set(key, fpv);
     if (!v.fails) {
       this.legal.add(fpv);
@@ -368,7 +371,7 @@ export function gridSeeds(kit: Kit, count: number, seed = 1): Form[] {
 export function treeSeeds(kit: Kit, count: number, seed = 1, halves = true): Form[] {
   const pieces = [...kit.pieces.values()], out: Form[] = [];
   for (let s = 0; s < count; s++) {
-    const r = makeRng(seed * 104729 + s), g = grow(pieces, r.int(4, 30), r.pick(['any', 'tower', 'spread', 'compact'] as const), kit.t, r, halves ? {} : {weights: {H: 0, H1: 0}});
+    const r = makeRng(seed * 104729 + s), g = grow(pieces, r.int(4, 30), r.pick(['any', 'tower', 'spread', 'compact'] as const), kit.t, r, halves ? (kit.noNotched ? {weights: {H: 0}} : {}) : {weights: {H: 0, H1: 0}});
     if (!g) continue;
     const form = latticeOf(kit, g.panels, g.types);
     if (form instanceof Form) out.push(form);
@@ -435,8 +438,11 @@ export function singleDiscs(halves = true): Form[] {
  * `onLevel` gets each level's canonical keys and how long the level took to find. Stops when a level would pass
  * `cap` forms and says so.
  */
-export function enumerate(kit: Kit, maxN: number, onLevel: (n: number, keys: string[], ms: number) => void, cap = 2_000_000, halves = true): {complete: boolean; stoppedAt?: number} {
-  let t0 = performance.now(), level = new Set(singleDiscs(halves).map(f => canonicalKey(f)));
+/** Most forms enumerate holds at one level; past it, counting stops (a run's levels then end early). */
+export const ENUMERATE_CAP = 2_000_000;
+
+export function enumerate(kit: Kit, maxN: number, onLevel: (n: number, keys: string[], ms: number) => void, cap = ENUMERATE_CAP, halves = true): {complete: boolean; stoppedAt?: number} {
+  let t0 = performance.now(), level = new Set(singleDiscs(halves).filter(f => !(kit.noNotched && f.hasH)).map(f => canonicalKey(f)));
   for (let n = 1; n <= maxN; n++) {
     onLevel(n, [...level], performance.now() - t0);
     if (n === maxN) break;

@@ -26,6 +26,12 @@ export interface Panel {
   pieces: V2[][];
 }
 
+/** A row-major 3×3 rotation applied to a vector. */
+export const turnVec = (R: readonly number[], v: V3): V3 => [R[0] * v[0] + R[1] * v[1] + R[2] * v[2], R[3] * v[0] + R[4] * v[1] + R[5] * v[2], R[6] * v[0] + R[7] * v[1] + R[8] * v[2]];
+/** A panel turned about the origin by a row-major 3×3 rotation (its outline, cuts and pieces are in its own frame). */
+export const turnPanel = <P extends {frame: Frame}>(p: P, R: readonly number[]): P =>
+  ({...p, frame: {o: turnVec(R, p.frame.o), u: turnVec(R, p.frame.u), v: turnVec(R, p.frame.v), n: turnVec(R, p.frame.n)}});
+
 export const toWorld = (f: Frame, q: V2, h = 0): V3 => add(add(add(f.o, scale(f.u, q[0])), scale(f.v, q[1])), scale(f.n, h));
 export function toLocal(f: Frame, p: V3): [number, number, number] {
   const d = sub(p, f.o);

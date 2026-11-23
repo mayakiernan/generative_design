@@ -1,4 +1,4 @@
-// npm run atlas [-- --rank novel|useful|both --iterations 20000 --judge-to 5 --count-to 6 --height 120 --size 80 --sheet 3 --seed 1]
+// npm run atlas [-- --no-notched --rank novel|useful|both --iterations 20000 --judge-to 5 --count-to 6 --height 120 --size 80 --sheet 3 --seed 1]
 // Maps the table forms of the Circular slot kit (src/slots/atlas/) and writes atlas-runs/<stamp>/{atlas.json, summary.md}.
 // Not under results/: the comparison page bundles every JSON file there.
 import {mkdirSync, writeFileSync} from 'node:fs';
@@ -23,7 +23,10 @@ const base = defaultSearch(rank), search0: SearchOptions = {
   motif: opt('--motif') !== undefined ? opt('--motif') === '1' : base.motif,
 };
 const tag = opt('--tag');
-const kit = makeKit(size, sheet, 0.2), rules = {...defaultRules(kit), height: num('--height', 1.5 * size)};
+const kit = makeKit(size, sheet, 0.2);
+// --no-notched: the kit without its notched half disc (H); full discs and the one-slit half disc (H1) only.
+if (args.includes('--no-notched')) kit.noNotched = true;
+const rules = {...defaultRules(kit), height: num('--height', 1.5 * size)};
 const log = (s: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${s}`);
 const started = performance.now();
 log(`rank: ${rank}; parents ${search0.select}, grafts ${search0.graft ? 'on' : 'off'}, rare motifs ${search0.motif ? 'on' : 'off'}. kit: ${size} mm discs, ${sheet} mm sheet, lattice pitch ${kit.p.toFixed(1)} mm. Table: surface ≥ ${rules.height} mm up, ≤ ${rules.maxDiscs} discs, tips past ${rules.minTip}°, braced, buildable, nothing loose, level surface`);
@@ -68,7 +71,7 @@ const covered = [...enumCells].filter(c => searchSmall.has(c)).length;
 const crate = new Map<string, boolean>();
 const isGrid = (key: string) => { let v = crate.get(key); if (v === undefined) { v = isEggCrate(kit, fromKey(key)); crate.set(key, v); } return v; };
 atlas.refreshNovelty();
-const compact = (e: Entry) => ({key: e.key, discs: e.metrics.discs, fails: e.fails, failing: failList(e.fails), grid: isGrid(e.key), novelty: e.novelty, crate: e.crate, features: e.features, metrics: e.metrics, steps: e.steps, top: e.top});
+const compact = (e: Entry) => ({key: e.key, discs: e.metrics.discs, fails: e.fails, failing: failList(e.fails), grid: isGrid(e.key), novelty: e.novelty, crate: e.crate, features: e.features, metrics: e.metrics, steps: e.steps, top: e.top, ...(e.rest ? {rest: e.rest} : {})});
 const cells = [...atlas.cells.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([cell, c]) => ({cell, seen: c.seen, minDiscs: c.minDiscs, legal: c.legal && compact(c.legal), near: c.near && compact(c.near)}));
 const byFails = [...atlas.byFails.entries()].sort((a, b) => b[1] - a[1]).map(([fails, count]) => ({fails, failing: failList(fails), count, example: compact(atlas.exampleOf.get(fails)!)}));
 const legalKeys = [...atlas.seen.entries()].filter(([, f]) => !f).map(([k]) => k);

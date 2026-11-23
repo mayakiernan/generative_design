@@ -21,6 +21,8 @@ export interface AtlasEntry {
   crate?: number;
   features: Omit<Features, 'crate'> & {crate?: string};
   metrics: Metrics; steps: BuildStep[]; top: Verdict['top'];
+  /** How it rests, when not as built (runs before resting poses lack it). */
+  rest?: number[];
 }
 
 export interface AtlasCell {cell: string; seen: number; minDiscs: number; legal?: AtlasEntry; near?: AtlasEntry}

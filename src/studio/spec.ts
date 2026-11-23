@@ -1,16 +1,17 @@
 /**
  * Purpose text → function spec (docs/function-spec.md), for the purposes the atlas judge can check today: one
- * level surface on top. Shelves and chairs are recognised but need checks that do not exist yet (stack, back), so
+ * level surface on top, or none at all (a sculpture, which only has to stand). Shelves and chairs are recognised but need checks that do not exist yet (stack, back), so
  * they come back as `unsupported`. Rule-based: a fixed vocabulary of purposes, plus heights and widths written with
  * a unit ("60 cm tall", "a top 40 cm wide").
  */
 
-export type PurposeId = 'side table' | 'coffee table' | 'dining table' | 'desk' | 'stool' | 'bench' | 'plant stand' | 'table';
+export type PurposeId = 'side table' | 'coffee table' | 'dining table' | 'desk' | 'stool' | 'bench' | 'plant stand' | 'table' | 'sculpture';
 
 export interface FunctionSpec {
   purpose: PurposeId;
   label: string;
-  role: 'top' | 'seat';
+  /** 'none': no surface (a sculpture); it only has to stand, and the height and width limits are open. */
+  role: 'top' | 'seat' | 'none';
   /** Surface height above the floor, mm: the band and where the score peaks. */
   minH: number; maxH: number; target: number;
   /** Least width of the surface, mm. */
@@ -25,7 +26,7 @@ export interface FunctionSpec {
 
 export type Parsed = {ok: true; spec: FunctionSpec} | {ok: false; reason: string; heard: string[]};
 
-interface Preset {id: PurposeId; words: RegExp; role: 'top' | 'seat'; minH: number; maxH: number; target: number; minWidth: number; kg: number; knee?: boolean}
+interface Preset {id: PurposeId; words: RegExp; role: 'top' | 'seat' | 'none'; minH: number; maxH: number; target: number; minWidth: number; kg: number; knee?: boolean}
 
 /** Starting values from the purpose library in docs/function-spec.md. Order matters: the first match wins. */
 export const PRESETS: Preset[] = [
@@ -36,6 +37,7 @@ export const PRESETS: Preset[] = [
   {id: 'plant stand', words: /\b(plant|pot|planter|pedestal|plinth)\b/, role: 'top', minH: 300, maxH: 900, target: 600, minWidth: 250, kg: 15},
   {id: 'stool', words: /\bstool\b/, role: 'seat', minH: 430, maxH: 480, target: 450, minWidth: 280, kg: 100},
   {id: 'bench', words: /\bbench\b/, role: 'seat', minH: 420, maxH: 460, target: 440, minWidth: 280, kg: 200},
+  {id: 'sculpture', words: /\b(sculpture|sculptural|object|art|artwork|ornament|centre ?piece|center ?piece|decor|totem|form)\b/, role: 'none', minH: 0, maxH: Infinity, target: 0, minWidth: 0, kg: 0},
   {id: 'table', words: /\btable\b/, role: 'top', minH: 450, maxH: 760, target: 600, minWidth: 300, kg: 20},
 ];
 
@@ -55,10 +57,12 @@ function lengthNear(s: string, words: string): number | null {
 
 export function parsePurpose(raw: string): Parsed {
   const s = ` ${raw.toLowerCase().replace(/[,;]/g, ' ')} `;
-  for (const [re, reason] of NOT_YET) if (re.test(s)) return {ok: false, reason, heard: [re.exec(s)![0].trim()]};
-  const preset = PRESETS.find(p => p.words.test(s));
+  // Naming a sculpture wins over the words around it ("a sculpture for the shelf" is a sculpture, not shelves).
+  const sculpture = PRESETS.find(p => p.id === 'sculpture')!.words.test(s);
+  if (!sculpture) for (const [re, reason] of NOT_YET) if (re.test(s)) return {ok: false, reason, heard: [re.exec(s)![0].trim()]};
+  const preset = sculpture ? PRESETS.find(p => p.id === 'sculpture')! : PRESETS.find(p => p.words.test(s));
   if (!preset) {
-    return {ok: false, reason: 'Try a table, side table, coffee table, dining table, desk, stool, bench or plant stand.', heard: []};
+    return {ok: false, reason: 'Try a table, side table, coffee table, dining table, desk, stool, bench, plant stand or sculpture.', heard: []};
   }
   const heard: string[] = [preset.id];
   let {minH, maxH, target, minWidth} = preset;

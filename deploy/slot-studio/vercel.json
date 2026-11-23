@@ -1,0 +1,37 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/studio/"
+    },
+    {
+      "source": "/atlas",
+      "destination": "/studio/atlas/"
+    },
+    {
+      "source": "/atlas/",
+      "destination": "/studio/atlas/"
+    },
+    {
+      "source": "/forms",
+      "destination": "/studio/forms/"
+    },
+    {
+      "source": "/forms/",
+      "destination": "/studio/forms/"
+    },
+    {
+      "source": "/blog",
+      "destination": "/studio/blog/"
+    },
+    {
+      "source": "/blog/",
+      "destination": "/studio/blog/"
+    }
+  ]
+}

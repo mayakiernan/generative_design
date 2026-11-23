@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import type {V2, V3} from '../math';
 import {DIRS, fromKey, makeKit, mouths} from '../atlas/lattice';
+import {turnVec} from '../panel';
 import {FAIL_TEXT} from '../atlas/judge';
 import {atlasItem, type AtlasEntry, type AtlasRun} from '../atlas/item';
 import type {GalleryItem} from '../gallery';
@@ -27,24 +28,27 @@ type Order = 'novel' | 'useful';
 interface Shown {e: AtlasEntry; legal: boolean}
 
 /** Axonometric drawing straight from the lattice: each disc a shaded circle with its slits, the top last. */
-export function FormThumb({e, pitch, R}: {e: AtlasEntry; pitch: number; R: number}) {
+export function FormThumb({e, pitch, R, fill = FILL, topFill = TOP_FILL}: {e: AtlasEntry; pitch: number; R: number; fill?: string; topFill?: string}) {
   const view = useMemo(() => {
     const az = -0.65, el = 0.5, dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const r: V3 = [Math.cos(az), Math.sin(az), 0], w: V3 = [Math.sin(az) * Math.cos(el), -Math.cos(az) * Math.cos(el), Math.sin(el)];
     const u: V3 = [w[1] * r[2] - w[2] * r[1], w[2] * r[0] - w[0] * r[2], w[0] * r[1] - w[1] * r[0]], light: V3 = [0.35, -0.55, 0.76];
     const flat = (P: V3): V2 => [dot(P, r), -dot(P, u)];
     const shapes = fromKey(e.key).discs.map(p => {
-      const o: V3 = [p.c[0] * pitch, p.c[1] * pitch, p.c[2] * pitch], [i, j] = [0, 1, 2].filter(k => k !== p.a);
-      const at = (s: number, c: number): V3 => { const q: V3 = [...o]; q[i] += s; q[j] += c; return q; };
+      // A form resting on another face is drawn turned to it (its top was fitted in that pose).
+      const turn = (q: V3): V3 => (e.rest ? turnVec(e.rest, q) : q);
+      const o0: V3 = [p.c[0] * pitch, p.c[1] * pitch, p.c[2] * pitch], o = turn(o0), [i, j] = [0, 1, 2].filter(k => k !== p.a);
+      const at = (s: number, c: number): V3 => { const q: V3 = [...o0]; q[i] += s; q[j] += c; return turn(q); };
       // A half disc keeps the half on its material side: an H1's slit side, an H's side s.
       const side = p.k === 'H1' ? mouths(p.m)[0] : p.k === 'H' ? p.s! : -1;
       const phi = side < 0 ? 0 : Math.atan2(DIRS[side][j], DIRS[side][i]);
       const ring = side < 0
         ? Array.from({length: 28}, (_, k) => flat(at(R * Math.cos((k / 28) * 2 * Math.PI), R * Math.sin((k / 28) * 2 * Math.PI))))
         : Array.from({length: 15}, (_, k) => { const th = phi - Math.PI / 2 + (k / 14) * Math.PI; return flat(at(R * Math.cos(th), R * Math.sin(th))); });
-      const slits = mouths(p.m).map(d => [flat([o[0] + DIRS[d][0] * R, o[1] + DIRS[d][1] * R, o[2] + DIRS[d][2] * R]), flat([o[0] + DIRS[d][0] * 0.52 * R, o[1] + DIRS[d][1] * 0.52 * R, o[2] + DIRS[d][2] * 0.52 * R])]);
-      const n: V3 = [0, 0, 0];
-      n[p.a] = 1;
+      const slits = mouths(p.m).map(d => [flat(turn([o0[0] + DIRS[d][0] * R, o0[1] + DIRS[d][1] * R, o0[2] + DIRS[d][2] * R])), flat(turn([o0[0] + DIRS[d][0] * 0.52 * R, o0[1] + DIRS[d][1] * 0.52 * R, o0[2] + DIRS[d][2] * 0.52 * R]))]);
+      const n0: V3 = [0, 0, 0];
+      n0[p.a] = 1;
+      const n = turn(n0);
       return {ring, slits, depth: dot(o, w), shade: 0.62 + 0.38 * Math.abs(dot(n, light)), top: false};
     }).sort((a, b) => a.depth - b.depth);
     if (e.top) {
@@ -61,7 +65,7 @@ export function FormThumb({e, pitch, R}: {e: AtlasEntry; pitch: number; R: numbe
     <svg className="thumb" viewBox={view.box} aria-hidden>
       {view.shapes.map((s, k) => (
         <g key={k}>
-          <path d={path(s.ring)} fill={s.top ? TOP_FILL : tone(FILL, s.shade)} fillOpacity={s.top ? 0.82 : 1} stroke="#25252e" strokeOpacity={0.7} strokeWidth={0.9} vectorEffect="non-scaling-stroke" />
+          <path d={path(s.ring)} fill={s.top ? topFill : tone(fill, s.shade)} fillOpacity={s.top ? 0.82 : 1} stroke="#25252e" strokeOpacity={0.7} strokeWidth={0.9} vectorEffect="non-scaling-stroke" />
           {s.slits.map(([a, b], i) => <path key={i} d={`M${a[0]} ${a[1]}L${b[0]} ${b[1]}`} stroke="#fff" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />)}
         </g>
       ))}

@@ -208,7 +208,8 @@ test('the atlas files legal grids, and a legal entry rebuilds as an engine desig
   const e = legal[0], d = atlasDesign(kit, e, 'test');
   assert.ok(d.ok, d.checks.filter(c => c.level === 'error').map(c => `${c.label}: ${c.detail}`).join('; '));
   assert.equal(d.panels.length, e.metrics.discs + 1, 'discs and the top');
-  assert.equal(d.steps.length, e.steps.length + 1);
+  // The top goes on last; a form judged resting on another face is first turned over onto it.
+  assert.equal(d.steps.length, e.steps.length + 1 + (e.rest ? 1 : 0));
   assert.ok(Math.abs(Math.min(...d.panels.flatMap(p => panelVertices(p).map(v => v[2])))) < 1e-9, 'set on the floor');
   // The judge is deterministic on the canonical form.
   assert.equal(judge(kit, fromKey(e.key)).fails, 0);

@@ -40,7 +40,7 @@ function margin(poly: V2[], q: V2) {
   return m;
 }
 
-const apothem = (outline: V2[]) => Math.min(...outline.map((a, i) => {
+export const apothem = (outline: V2[]) => Math.min(...outline.map((a, i) => {
   const b = outline[(i + 1) % outline.length];
   return Math.abs(a[0] * b[1] - b[0] * a[1]) / Math.hypot(b[0] - a[0], b[1] - a[1]);
 }));
@@ -88,7 +88,7 @@ function seat(patches: Patch[], outline: V2[], minMargin: number) {
 }
 
 /** The highest level spot on top of the design where the cover's centre sits at least `minMargin` inside its contacts. */
-function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
+export function findCoverSpot(panels: Panel[], t: number, cover: Piece, minMargin: number): CoverSpot | null {
   const faces = hullFaces(panels.flatMap(panelVertices))
     .filter(f => f.n[2] >= Math.cos((MAX_TILT_DEG * Math.PI) / 180))
     .sort((a, b) => Math.max(...b.pts.map(p => p[2])) - Math.max(...a.pts.map(p => p[2])));
@@ -174,7 +174,7 @@ export function coverDesign(g: Grown, makeCover: (scale: number) => Piece, t: nu
 }
 
 /** Width of a convex polygon: its least extent across any of its edges. */
-function minWidth(poly: V2[]): number {
+export function minWidth(poly: V2[]): number {
   let w = Infinity;
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i], b = poly[(i + 1) % poly.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -186,6 +186,27 @@ function minWidth(poly: V2[]): number {
 }
 
 /**
+ * A large cover for a design whose very top is a point or a line (a form resting tilted, say): the contacts on its
+ * highest near-level face that three or more pieces touch, not all on one line, grown outward by `margin` like
+ * fittedCover and widened to at least `least` across. Null when no such face exists.
+ */
+export function faceCover(panels: Panel[], t: number, clearance: number, margin: number, least = 0): Piece | null {
+  const vs = panels.map(p => panelVertices(p));
+  const faces = hullFaces(vs.flat())
+    .filter(f => f.n[2] >= Math.cos((MAX_TILT_DEG * Math.PI) / 180))
+    .sort((a, b) => Math.max(...b.pts.map(p => p[2])) - Math.max(...a.pts.map(p => p[2])));
+  for (const f of faces) {
+    const plane = (v: V3) => f.n[0] * v[0] + f.n[1] * v[1] + f.n[2] * v[2];
+    const on = vs.map(ps => ps.filter(v => plane(v) >= f.c - 0.05)).filter(ps => ps.length);
+    if (on.length < 3) continue;
+    const hull = ccw(convexHull(on.flat().map(v => [v[0], v[1]] as V2)));
+    if (hull.length < 3 || signedArea(hull) < 1) continue;
+    return grownCover(hull, t, clearance, margin, least);
+  }
+  return null;
+}
+
+/**
  * A cover cut to fit the design's top: the plan hull of its highest points grown outward by `margin`, corners
  * rounded (the hull's Minkowski sum with a disc), and widened until it is at least `minWidth` across in every
  * direction. Centred on its centroid. Null when the top is a single point or line, which leaves nothing to fit.
@@ -194,6 +215,11 @@ export function fittedCover(panels: Panel[], t: number, clearance: number, margi
   const vs = panels.flatMap(panelVertices), top = Math.max(...vs.map(v => v[2]));
   const hull = ccw(convexHull(vs.filter(v => v[2] > top - 0.05).map(v => [v[0], v[1]] as V2)));
   if (hull.length < 3 || signedArea(hull) < 1e-6) return null;
+  return grownCover(hull, t, clearance, margin, least, arcSteps);
+}
+
+/** A CCW plan hull grown outward by `margin` (corners rounded), widened to `least` across, centred on its centroid. */
+function grownCover(hull: V2[], t: number, clearance: number, margin: number, least = 0, arcSteps = 8): Piece {
   const grown = (m: number): V2[] => {
     const out: V2[] = [];
     hull.forEach((v, i) => {

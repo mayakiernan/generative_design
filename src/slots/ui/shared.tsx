@@ -17,11 +17,13 @@ function buildPanel(p: PanelOut) {
   const at = (q: V2, s: number): [number, number, number] => [o[0] + u[0] * q[0] + v[0] * q[1] + n[0] * s, o[1] + u[1] * q[0] + v[1] * q[1] + n[1] * s, o[2] + u[2] * q[0] + v[2] * q[1] + n[2] * s];
   const pos: number[] = [], nor: number[] = [], edges: number[] = [];
   const tri = (a: number[], b: number[], c: number[], nn: number[]) => { pos.push(...a, ...b, ...c); nor.push(...nn, ...nn, ...nn); };
+  let faces = 0;
   const nNeg = [-n[0], -n[1], -n[2]];
   for (const pc of p.pieces) for (let i = 1; i + 1 < pc.length; i++) {
     tri(at(pc[0], h), at(pc[i], h), at(pc[i + 1], h), n);
     tri(at(pc[0], -h), at(pc[i + 1], -h), at(pc[i], -h), nNeg);
   }
+  faces = pos.length / 3;
   for (const loop of p.loops) for (let i = 0; i < loop.length; i++) {
     const a = loop[i], b = loop[(i + 1) % loop.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
     const out = [(u[0] * dy - v[0] * dx) / l, (u[1] * dy - v[1] * dx) / l, (u[2] * dy - v[2] * dx) / l];
@@ -32,6 +34,9 @@ function buildPanel(p: PanelOut) {
   const mesh = new THREE.BufferGeometry();
   mesh.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   mesh.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  // Two material groups: the faces (0) and the cut edges round the outline and down every slit (1).
+  mesh.addGroup(0, faces, 0);
+  mesh.addGroup(faces, pos.length / 3 - faces, 1);
   const lines = new THREE.BufferGeometry();
   lines.setAttribute('position', new THREE.Float32BufferAttribute(edges, 3));
   return {mesh, lines};
@@ -41,7 +46,13 @@ const ease = (x: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
 
 /* ---------- 3D scene (design coordinates are z-up; the group turns them y-up) ---------- */
 
-export function Scene({d, step, playing, explode, picked, onPick, onStepDone, colors = WOOD}: {d: Design; step: number; playing: boolean; explode: boolean; picked: number | null; onPick: (i: number | null) => void; onStepDone: () => void; colors?: string[]}) {
+/**
+ * `look` restyles the scene: the colour of the cut edges (slit walls and rims), the edge lines, the ground disc (null
+ * for none), and whether the support polygon and centre of mass are drawn.
+ */
+export interface SceneLook {cutEdges?: string; lines?: string; lineOpacity?: number; ground?: string | null; support?: boolean}
+
+export function Scene({d, step, playing, explode, picked, onPick, onStepDone, colors = WOOD, look = {}}: {d: Design; step: number; playing: boolean; explode: boolean; picked: number | null; onPick: (i: number | null) => void; onStepDone: () => void; colors?: string[]; look?: SceneLook}) {
   const geo = useMemo(() => d.panels.map(buildPanel), [d]);
   useEffect(() => () => geo.forEach(g => { g.mesh.dispose(); g.lines.dispose(); }), [geo]);
   // A panel appears at its own step; a panel in a group step (a layer built on the bench) waits raised above its
@@ -103,19 +114,22 @@ export function Scene({d, step, playing, explode, picked, onPick, onStepDone, co
           const color = hit ? '#c81e1e' : on ? ACCENT : colors[i % colors.length];
           return (
             <group key={`${d.title}-${i}`} ref={el => { groups.current[i] = el; }} onClick={e => { e.stopPropagation(); onPick(on ? null : p.id); }}>
-              <mesh geometry={geo[i].mesh}><meshStandardMaterial color={color} roughness={0.78} metalness={0} /></mesh>
-              <lineSegments geometry={geo[i].lines}><lineBasicMaterial color="#5b4a36" transparent opacity={0.55} /></lineSegments>
+              <mesh geometry={geo[i].mesh}>
+                <meshStandardMaterial attach="material-0" color={color} roughness={0.78} metalness={0} />
+                <meshStandardMaterial attach="material-1" color={look.cutEdges ?? color} roughness={0.78} metalness={0} />
+              </mesh>
+              <lineSegments geometry={geo[i].lines}><lineBasicMaterial color={look.lines ?? '#5b4a36'} transparent opacity={look.lineOpacity ?? 0.55} /></lineSegments>
             </group>
           );
         })}
-        {hull.length >= 3 && step >= d.steps.length && !explode && (
+        {(look.support ?? true) && hull.length >= 3 && step >= d.steps.length && !explode && (
           <>
             <Line points={[...hull, hull[0]].map(q => [q[0], q[1], 0.4] as [number, number, number])} color={stands ? '#3c8a5a' : '#c81e1e'} lineWidth={1.6} />
             <Line points={[[com[0], com[1], com[2]], [com[0], com[1], 0.4]]} color={stands ? '#3c8a5a' : '#c81e1e'} lineWidth={1} dashed dashSize={size * 0.02} gapSize={size * 0.015} />
             <mesh position={[com[0], com[1], com[2]]}><sphereGeometry args={[size * 0.012, 16, 12]} /><meshBasicMaterial color={stands ? '#3c8a5a' : '#c81e1e'} /></mesh>
           </>
         )}
-        <mesh position={[0, 0, -0.2]}><circleGeometry args={[size * 1.6, 64]} /><meshStandardMaterial color="#f1efe9" roughness={1} /></mesh>
+        {look.ground !== null && <mesh position={[0, 0, -0.2]}><circleGeometry args={[size * 1.6, 64]} /><meshStandardMaterial color={look.ground ?? '#f1efe9'} roughness={1} /></mesh>}
       </group>
       <OrbitControls makeDefault target={[0, d.size.height * 0.42, 0]} />
     </>
@@ -133,8 +147,9 @@ export function download(name: string, data: BlobPart, type: string) {
 
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-export function CutSheet({d, marks}: {d: Design; marks?: Mark[]}) {
-  const sheet = useMemo(() => packSheet(d, 12), [d]);
+/** `width`: the sheet width to pack to, mm (default: 600 mm or the widest piece). */
+export function CutSheet({d, marks, width}: {d: Design; marks?: Mark[]; width?: number}) {
+  const sheet = useMemo(() => packSheet(d, 12, width), [d, width]);
   const byId = new Map(sheet.items.map(it => [it.id, it]));
   return (
     <svg className="sheet" viewBox={`0 0 ${sheet.width} ${sheet.height}`} role="img" aria-label="Cut sheet">

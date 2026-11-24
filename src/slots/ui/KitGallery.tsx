@@ -302,8 +302,9 @@ export function KitGallery() {
   );
 }
 
-function DesignDetail({item, index, name: title, fill, onClose}: {item: GalleryItem; index: number; name?: string; fill: string; onClose: () => void}) {
-  const d = item.design, n = d.steps.length;
+/** `cut`, when given, is the design the laser files are drawn from (the same pieces with a different slit fit). */
+export function DesignDetail({item, index, name: title, fill, onClose, cut}: {item: GalleryItem; index: number; name?: string; fill: string; onClose: () => void; cut?: Design}) {
+  const d = item.design, n = d.steps.length, cd = cut ?? d;
   const [step, setStep] = useState(n);
   const [playing, setPlaying] = useState(false);
   const [explode, setExplode] = useState(false);
@@ -340,15 +341,15 @@ function DesignDetail({item, index, name: title, fill, onClose}: {item: GalleryI
             <ol className="steps">{item.steps.map((s, i) => <li key={i} className={i + 1 === step ? 'on' : ''}><button type="button" onClick={() => { setPlaying(false); setStep(i + 1); }}>{s.text}</button></li>)}</ol>
             <div className="mono label">LASER FILES</div>
             <div className="downloads">
-              <button type="button" className="primary" onClick={() => download(`${name}.svg`, cutSheetSVG(d, item.marks), 'image/svg+xml')}>Cut sheet · SVG</button>
-              <button type="button" onClick={() => download(`${name}.dxf`, cutSheetDXF(d, item.marks), 'application/dxf')}>Cut sheet · DXF</button>
-              <button type="button" onClick={() => download(`${name}-assembly.html`, assemblyGuideHTML(`Design ${index}`, d, parts, item.steps, item.marks), 'text/html')}>Assembly guide · HTML</button>
+              <button type="button" className="primary" onClick={() => download(`${name}.svg`, cutSheetSVG(cd, item.marks), 'image/svg+xml')}>Cut sheet · SVG</button>
+              <button type="button" onClick={() => download(`${name}.dxf`, cutSheetDXF(cd, item.marks), 'application/dxf')}>Cut sheet · DXF</button>
+              <button type="button" onClick={() => download(`${name}-assembly.html`, assemblyGuideHTML(`Design ${index}`, cd, parts, item.steps, item.marks), 'text/html')}>Assembly guide · HTML</button>
             </div>
-            <p className="muted small">Red lines cut, blue text engraves: each piece's number and a letter at each slit. Slits are cut {(d.thickness + d.clearance).toFixed(2)} mm wide for a snug 90° fit.</p>
+            <p className="muted small">Red lines cut, blue text engraves: each piece's number and a letter at each slit. Slits are cut {(cd.thickness + cd.clearance).toFixed(2)} mm wide for a {cd.clearance < 0 ? 'press fit: tap each joint home with a mallet' : 'snug 90° fit'}.</p>
           </div>
         </div>
         <div className="mono label">CUT SHEET</div>
-        <CutSheet d={d} marks={item.marks} />
+        <CutSheet d={cd} marks={item.marks} />
       </div>
     </div>
   );

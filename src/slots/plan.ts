@@ -110,6 +110,9 @@ function liftUnit(rest: Panel[]): {members: Panel[]; d: V3; distance: number} | 
   const levels = [...new Set(rest.map(p => Math.round(zOf(p))))].sort((a, b) => b - a);
   for (const z of levels.slice(0, -1)) {
     const above = rest.filter(p => zOf(p) >= z - 1);
+    // Levels within the 1 mm tolerance of the lowest can sweep in every piece; a unit that leaves nothing behind
+    // is the same problem again, and planning it recursed until the stack ran out.
+    if (above.length === rest.length) continue;
     const units = components(above).sort((a, b) => a.length - b.length);
     if (units.length > 1) units.push(above);
     for (const members of units) {

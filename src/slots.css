@@ -194,3 +194,28 @@ button.primary{border:1px solid #e95319;background:#e95319;color:#fff;border-rad
 .ks-counts{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;font-size:13px;color:#55554f}.ks-counts b{font-weight:600;color:#242421}
 .ks-preview{max-height:none;margin-bottom:8px}.ks-preview .ks-stock{fill:#f6efe1;stroke:#d9cdb3;stroke-width:1;vector-effect:non-scaling-stroke}
 .ks-preview text{fill:#2f4fd0;font-family:Helvetica,Arial,sans-serif}
+
+/* Form atlas tab */
+.atlas-run{display:flex !important;align-items:center;gap:8px;margin:0 0 12px}.atlas-run select{border:1px solid #d7d6d0;border-radius:4px;padding:5px 8px;font-size:12px;background:#fff}
+.atlas-stats{font-size:13px;color:#55554f;margin:0 0 18px;line-height:1.6}.atlas-stats b{font-weight:600;color:#242421}
+.atlas-map-wrap{overflow-x:auto;margin:4px 0 26px}
+.atlas-map{display:grid;grid-template-columns:76px repeat(7,minmax(46px,1fr));gap:4px;max-width:760px;min-width:420px}
+.atlas-map.cols-5{grid-template-columns:76px repeat(5,minmax(58px,1fr));max-width:620px;min-width:380px}
+.atlas-map.cols-6{grid-template-columns:118px repeat(6,minmax(52px,1fr));max-width:700px;min-width:440px}
+.atlas-map .head{color:#92928a;text-align:center;align-self:end;padding-bottom:4px}.atlas-map .corner{text-align:left}
+.atlas-row{display:contents}
+.atlas-map .row-label{font-size:11.5px;color:#55554f;align-self:center}.atlas-map .row-label.muted{color:#b2b0a8}
+.atlas-sq{height:36px;border:1px solid transparent;border-radius:5px;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0}
+.atlas-sq.legal{color:#1f4f33;border-color:#a9d1b7}.atlas-sq.near{color:#7a3a12;border-color:#f0cdb8}
+.atlas-sq.empty{border:1px dashed #eceae4}
+.atlas-sq.on{outline:2px solid #242421;outline-offset:1px}
+.atlas-sq:hover{border-color:#242421}
+.linkish{border:0;background:none;padding:0;color:#e95319;text-decoration:underline;font-size:inherit}
+.atlas-more{display:block;margin:16px auto 0;border:1px solid #d7d6d0;background:#fff;border-radius:999px;padding:7px 16px;font-size:12.5px;color:#55554f}
+.atlas-facts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:20px 48px;margin-top:40px}
+.atlas-table{border-collapse:collapse;font-size:12.5px;color:#55554f}.atlas-table th{font-weight:400;color:#92928a;text-align:right;padding:4px 14px 4px 0;border-bottom:1px solid #eceae4}
+.atlas-table td{text-align:right;padding:4px 14px 4px 0;border-bottom:1px solid #f4f3ef;font-variant-numeric:tabular-nums}
+.atlas-fails{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.atlas-fails button{border:0;background:none;padding:4px 0;text-align:left;font-size:12.5px;color:#55554f}.atlas-fails button:hover{color:#e95319}
+.atlas-fails b{display:inline-block;min-width:60px;font-weight:600;color:#242421;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.atlas-facts{grid-template-columns:1fr}}

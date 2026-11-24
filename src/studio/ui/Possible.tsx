@@ -16,7 +16,6 @@ export function Possible() {
     <footer className="pp-possible" aria-label="More">
       <nav className="pp-foot">
         <a href="atlas/">Atlas</a>
-        <a href="forms/">Form counts</a>
         <a href="blog/">Blog</a>
       </nav>
     </footer>

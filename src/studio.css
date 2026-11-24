@@ -312,4 +312,3 @@ body{min-height:100svh;background-color:var(--pp-paper);font-family:var(--pp-bod
 .pp-head{position:absolute;top:clamp(16px,3vh,32px);right:clamp(16px,3vw,40px);z-index:2;display:flex;gap:clamp(18px,2.2vw,32px)}
 .pp-head a{font:500 clamp(12px,1vw,14px) var(--pp-grotesk);text-transform:uppercase;letter-spacing:.04em;color:var(--pp-ink);text-decoration:none;border-bottom:1.5px solid transparent}
 .pp-head a:hover,.pp-head a:focus-visible{border-bottom-color:var(--pp-ink)}
-.pa-go-bare{justify-content:flex-end}

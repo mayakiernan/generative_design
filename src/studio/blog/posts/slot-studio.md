@@ -1,5 +1,5 @@
 ---
-title: Slot Studio: Designs for a Purpose from Plywood Circles
+title: Possible Pieces
 date: 2026-11-23
 summary: AI can generate shapes, but can you build them? Our first experiment in generative furniture from slotted plywood discs.
 ---
@@ -16,9 +16,9 @@ That's the question we set out to explore: how can the systems that transformed 
 
 In our first experiment, we were curious about build-ability (if that's even a phrase). AI and other generative systems can produce shapes and CAD files, but they offer no guarantee that the result is structurally sound. Will it stand on its own? Will it hold a load? Can it even be assembled? AI can generate a shape in free-form space, but can you actually build it in real life?
 
-![Side Table #377, a render from our form atlas](./slot-studio/side-table-377.png)
+![A laser cutter cutting slotted discs from a sheet](./slot-studio/laser-cutter.png)
 
-*Side Table #377, a render from our form atlas.*
+*A laser cutter cutting slotted discs from a sheet.*
 
 Questions about physical constraints, and about physics-informed designs meant to exist in the real world, are now front and center in research. In the last year or so, a wave of papers has looked at using these models to generate structures that both answer the prompt (or serve the structure's purpose) and are physically feasible.
 

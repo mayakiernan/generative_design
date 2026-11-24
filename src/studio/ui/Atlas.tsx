@@ -12,7 +12,6 @@ import {
 import type {JudgeMessage, JudgeRequest} from '../judgeWorker';
 import {DotArrow, Mark} from './Shapes';
 import {Detail} from './Detail';
-import type {StepHold} from '../../slots/atlas/holds';
 import {queueIso} from './isoThumbs';
 import {AgentRun, type AgentRequest} from './AgentRun';
 import {STUDIO} from '../../slotwright/template';
@@ -42,8 +41,10 @@ type Outcome =
 export function Atlas() {
   const [run, setRun] = useState<AtlasRun | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [circles, setCircles] = useState(24);
-  const [inches, setInches] = useState(9);
+  // The fields keep what was typed, so a cleared field stays empty instead of turning into 0.
+  const [circlesText, setCirclesText] = useState('24');
+  const [inchesText, setInchesText] = useState('9');
+  const circles = circlesText.trim() ? Number(circlesText) : NaN, inches = inchesText.trim() ? Number(inchesText) : NaN;
   const [purpose, setPurpose] = useState('side table');
   const [stable, setStable] = useState(true);
   const [outcome, setOutcome] = useState<Outcome>({kind: 'idle'});
@@ -92,6 +93,7 @@ export function Atlas() {
   }
 
   function go() {
+    if (!(circles >= 1)) { setOutcome({kind: 'error', text: 'Say how many circles you have.'}); return; }
     if (agent) {
       const what = brief.trim();
       if (!what) { setOutcome({kind: 'error', text: 'Say what to make.'}); return; }
@@ -111,7 +113,7 @@ export function Atlas() {
   }
 
   const q = outcome.kind === 'running' || outcome.kind === 'done' || outcome.kind === 'unreachable' ? outcome.query : null;
-  const D = q?.material.diameter ?? Math.round(inches * IN);
+  const D = q?.material.diameter ?? Math.round((inches >= MIN_IN ? inches : MIN_IN) * IN);
   const kit = useMemo(() => kitFor(D), [D]);
   const label = q ? titleCase(q.spec.label) : '';
   // A design's number is its place in the pinned atlas, so the same design keeps it from search to search.
@@ -126,14 +128,14 @@ export function Atlas() {
     };
   }, [open, q, results, kit, D, label, ids]);
   // The drawn disc grows with the diameter asked for, within the panel.
-  const discScale = Math.min(1, Math.max(0.55, 0.55 + ((inches - MIN_IN) / (24 - MIN_IN)) * 0.45));
+  const discScale = Number.isFinite(inches) ? Math.min(1, Math.max(0.55, 0.55 + ((inches - MIN_IN) / (24 - MIN_IN)) * 0.45)) : 0.55;
   const searched = outcome.kind !== 'idle' || (agent && !!agentReq);
   const switchTo = (a: boolean) => { setAgent(a); history.replaceState(null, '', a ? '#custom' : location.pathname + location.search); };
   const submit = (e: FormEvent) => { e.preventDefault(); go(); };
 
   const fields = {
-    diameter: <input className="pa-num" type="number" min={MIN_IN} max={48} step={0.5} value={inches} onChange={e => setInches(Number(e.target.value))} aria-label="Disc diameter in inches" style={{width: `${String(inches).length + 1.2}ch`}} />,
-    circles: <input className="pa-num" type="number" min={1} max={60} value={circles} onChange={e => setCircles(Number(e.target.value))} aria-label="Number of circles" style={{width: `${String(circles).length + 1.2}ch`}} />,
+    diameter: <input className="pa-num" type="number" min={MIN_IN} max={48} step={0.5} value={inchesText} onChange={e => setInchesText(e.target.value)} aria-label="Disc diameter in inches" style={{width: `${Math.max(1, inchesText.length) + 1.2}ch`}} />,
+    circles: <input className="pa-num" type="number" min={1} max={60} value={circlesText} onChange={e => setCirclesText(e.target.value)} aria-label="Number of circles" style={{width: `${Math.max(1, circlesText.length) + 1.2}ch`}} />,
     purpose: agent
       ? <input className="pa-text" type="text" value={brief} onChange={e => setBrief(e.target.value)} placeholder="a car, a giraffe…" aria-label="What to make" maxLength={200} />
       : <input className="pa-text" type="text" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="purpose…" aria-label="Purpose" />,
@@ -168,8 +170,8 @@ export function Atlas() {
             <label className="pa-line">I have {fields.circles} circles</label>
             <label className="pa-line pa-purpose">{agent ? 'Make me' : 'The purpose of this is'} {fields.purpose}</label>
             {agent ? <p className="ag-hint">The model designs it piece by piece, checks that it stands and can be built, and looks at each version. A run takes a few minutes.</p> : fields.mode}
-            <button className={`pa-go${agent ? ' pa-go-bare' : ''}`} type="submit" disabled={!agent && !run} aria-label={agent ? 'Make it' : undefined}>
-              {!agent && <span>{run ? 'Atlas' : 'Loading…'}</span>}
+            <button className="pa-go" type="submit" disabled={!agent && !run}>
+              <span>{agent || run ? 'Explore' : 'Loading…'}</span>
               <DotArrow />
             </button>
           </div>
@@ -216,7 +218,6 @@ export function Atlas() {
                     <span className="pa-meta">
                       <b>{nameOf(j)}</b>
                       <span>H: {inch(m.height)}″ W: {inch(width)}″</span>
-                      {j.holds && <span className="pa-hands">{handsText(j.holds)}</span>}
                     </span>
                   </button>
                 );
@@ -237,7 +238,6 @@ export function Atlas() {
 /** Tile sizes in the order the grid repeats them: mostly single, some wide, now and then a big one. */
 const TILE = ['', '', '', '', '', 'wide', '', '', '', 'big', 'wide'];
 /** "Builds alone", or how many build steps need someone holding the part built so far. */
-const handsText = (holds: StepHold[]) => { const n = holds.filter(h => h.needs).length; return n ? `A hand at ${n} of ${holds.length} steps` : 'Builds alone'; };
 const titleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
 
 function topBox(j: Judged): [number, number] {

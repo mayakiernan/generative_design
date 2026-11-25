@@ -1,6 +1,5 @@
 import {lazy, Suspense, useState} from 'react';
 import {PieceStory} from './PieceStory';
-import {Possible} from './Possible';
 
 const DesignSpace = lazy(() => import('./DesignSpace').then(module => ({default: module.DesignSpace})));
 
@@ -26,7 +25,6 @@ export default function LandingStory() {
         <Suspense fallback={null}>
           <div ref={focusAndScroll} tabIndex={-1} role="region" aria-label="Design space">
             <DesignSpace />
-            <Possible />
           </div>
         </Suspense>
       )}

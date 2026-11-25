@@ -20,7 +20,7 @@ export function writtenOut(row: CountRow): string {
 
 /**
  * The third beat: how big the design space is. One screen holds one circle; each press of the down arrow gives
- * more pieces and grows the circle, until it covers the page; after the last step the arrow moves on.
+ * more pieces and grows the circle. The last step links to the Atlas.
  */
 export function DesignSpace() {
   const rows = pinnedCounts();
@@ -35,7 +35,7 @@ export function DesignSpace() {
         <p className="pp-space-have">I have <b>{n}</b> circles<br />I actually have</p>
         <p className="pp-space-count" key={n}><b>{writtenOut(row)}</b><br />possibilities</p>
         {step < STEPS.length - 1
-          ? <DownArrow label={`Show ${STEPS[step + 1]} circles`} onClick={() => { setStep(step + 1); return true; }} />
+          ? <DownArrow label={`Show ${STEPS[step + 1]} circles`} onClick={() => { setStep(current => current + 1); return true; }} />
           : <div className="pp-space-go"><PossibleLink /></div>}
       </div>
     </section>

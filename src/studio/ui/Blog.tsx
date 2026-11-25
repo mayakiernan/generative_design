@@ -20,42 +20,51 @@ export function Blog() {
   const post = useMemo(() => POSTS.find(p => p.slug === slug) ?? null, [slug]);
   useEffect(() => { document.title = post ? `${post.title} · Probable Pieces` : 'Blog · Probable Pieces'; scrollTo(0, 0); }, [post]);
   const open = (s: string | null) => (e: MouseEvent) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
     history.pushState(null, '', s ? `?p=${encodeURIComponent(s)}` : './');
     setSlug(s);
   };
 
   return (
-    <div className="st pb">
+    <>
       <StudioNav current="blog" />
-      {post ? (
-        <article className="pb-post">
-          <a className="pb-back" href="./" onClick={open(null)}>Blog</a>
-          <h1>{post.title}</h1>
-          <p className="pb-date">{longDate(post.date)}{post.author ? ` · ${post.author}` : ''}</p>
-          {post.cover && <img className="pb-cover" src={post.cover} alt="" />}
-          <div className="pb-body" dangerouslySetInnerHTML={{__html: post.html}} />
-        </article>
-      ) : (
-        <>
-          <h1 className="pb-head">Blog</h1>
-          {slug && <p className="pb-empty">That post is not here.</p>}
-          {POSTS.length ? (
-            <ul className="pb-list">
-              {POSTS.map(p => (
-                <li key={p.slug}>
-                  <a href={`?p=${encodeURIComponent(p.slug)}`} onClick={open(p.slug)}>
-                    {p.cover && <img src={p.cover} alt="" loading="lazy" />}
-                    <span className="pb-date">{longDate(p.date)}</span>
-                    <b>{p.title}</b>
-                    {p.summary && <span className="pb-summary">{p.summary}</span>}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="pb-empty">No posts yet.</p>}
-        </>
-      )}
-    </div>
+      <main className="st pb">
+        {post ? (
+          <article className="pb-post">
+            <a className="pb-back" href="./" onClick={open(null)}>Blog</a>
+            <h1>{post.title}</h1>
+            <p className="pb-date">{longDate(post.date)}{post.author ? ` · ${post.author}` : ''}</p>
+            {post.cover && <img className="pb-cover" src={post.cover} alt="" />}
+            <div className="pb-body" dangerouslySetInnerHTML={{__html: post.html}} />
+          </article>
+        ) : (
+          <>
+            <h1 className="pb-head">Blog</h1>
+            {slug && <p className="pb-empty">That post is not here.</p>}
+            {POSTS.length ? (
+              <ul className="pb-list">
+                {POSTS.map(p => (
+                  <li key={p.slug}>
+                    <a href={`?p=${encodeURIComponent(p.slug)}`} onClick={open(p.slug)}>
+                      <div className="pb-card-body">
+                        <div className="pb-card-copy">
+                          <h2>{p.title}</h2>
+                          {p.summary && <p className="pb-summary">{p.summary}</p>}
+                        </div>
+                        {(p.thumbnail || p.cover) && <img src={p.thumbnail || p.cover} alt="" loading="lazy" />}
+                      </div>
+                      <div className="pb-card-footer">
+                        {p.date && <time className="pb-date" dateTime={p.date}>{longDate(p.date)}</time>}
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="pb-empty">No posts yet.</p>}
+          </>
+        )}
+      </main>
+    </>
   );
 }

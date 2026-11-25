@@ -10,7 +10,8 @@ import {
   spreadOrder, type Judged, type Material, type Reach,
 } from '../query';
 import type {JudgeMessage, JudgeRequest} from '../judgeWorker';
-import {DotArrow, Mark} from './Shapes';
+import {DotArrow} from './Shapes';
+import {StudioNav} from './Nav';
 import {Detail} from './Detail';
 import {queueIso} from './isoThumbs';
 import {AgentRun, type AgentRequest} from './AgentRun';
@@ -157,9 +158,9 @@ export function Atlas() {
 
   return (
     <div className="pa">
+      <StudioNav current="atlas" />
       {!searched ? (
         <form className="pa-panel" onSubmit={submit}>
-          <a className="pa-home" href="../" aria-label="Probable Pieces home"><Mark /></a>
           <div className="pa-left">
             <div className="pa-disc" style={{['--s' as string]: discScale}} aria-hidden><span /></div>
             <label className="pa-line">Diameter {fields.diameter} in</label>
@@ -178,7 +179,6 @@ export function Atlas() {
         </form>
       ) : (
         <form className="pa-bar" onSubmit={submit}>
-          <a className="pa-home" href="../" aria-label="Probable Pieces home"><Mark /></a>
           <button className="pa-bar-title" type="submit" disabled={!agent && !run} title={agent ? 'Design again' : 'Search again'} aria-label={agent ? 'Design again' : undefined}>{agent ? <DotArrow /> : 'Atlas'}</button>
           <div className="pa-bar-fields">
             {fields.how}

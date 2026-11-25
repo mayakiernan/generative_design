@@ -4,4 +4,4 @@ import {Blog} from './studio/ui/Blog';
 import './slots.css';
 import './studio.css';
 
-createRoot(document.getElementById('root')!).render(<React.StrictMode><main className="slots"><Blog /></main></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode><Blog /></React.StrictMode>);

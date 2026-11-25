@@ -4,7 +4,7 @@
  * only produce these elements.
  */
 
-export interface Post {slug: string; title: string; date: string; summary: string; author?: string; cover?: string; html: string}
+export interface Post {slug: string; title: string; date: string; summary: string; author?: string; cover?: string; thumbnail?: string; html: string}
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 /** Only web and relative links: no javascript: or data: URLs. */
@@ -72,7 +72,7 @@ export function renderMarkdown(src: string, media: MediaUrl = u => u): string {
   return out.join('\n');
 }
 
-/** A post file: `---` front matter (title, date as YYYY-MM-DD, summary, optional author and cover) then Markdown. */
+/** A post file: `---` front matter (title, date as YYYY-MM-DD, summary, optional author, cover and thumbnail) then Markdown. */
 export function parsePost(slug: string, raw: string, media: MediaUrl = u => u): Post {
   const m = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(raw.replace(/\r\n/g, '\n'));
   const meta: Record<string, string> = {};
@@ -80,7 +80,7 @@ export function parsePost(slug: string, raw: string, media: MediaUrl = u => u): 
     const kv = /^(\w+):\s*(.*)$/.exec(line);
     if (kv) meta[kv[1]] = kv[2].replace(/^["']|["']$/g, '');
   }
-  return {slug, title: meta.title ?? slug, date: meta.date ?? '', summary: meta.summary ?? '', author: meta.author, cover: meta.cover && media(meta.cover), html: renderMarkdown(m?.[2] ?? raw, media)};
+  return {slug, title: meta.title ?? slug, date: meta.date ?? '', summary: meta.summary ?? '', author: meta.author, cover: meta.cover && media(meta.cover), thumbnail: meta.thumbnail && media(meta.thumbnail), html: renderMarkdown(m?.[2] ?? raw, media)};
 }
 
 /** "22 November 2026" from "2026-11-22". */

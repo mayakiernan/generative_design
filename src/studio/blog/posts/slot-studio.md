@@ -1,6 +1,7 @@
 ---
 title: Possible Pieces
 date: 2026-11-23
+thumbnail: ./slot-studio/finished-table.jpg
 summary: AI can generate shapes, but can you build them? Our first experiment in generative furniture from slotted plywood discs.
 ---
 

@@ -1,6 +1,5 @@
 import {formatCount, sci, type CountRow} from '../counts';
 import {pinnedCounts, pinnedLevels, type Level} from '../pinnedCounts';
-import {StudioNav} from './Nav';
 
 function Big({log}: {log: number}) {
   const s = sci(log);
@@ -13,7 +12,6 @@ export function Forms() {
 
   return (
     <div className="st">
-      <StudioNav current="forms" />
       <header className="st-head">
         <h1>How many forms?</h1>
         <p>

@@ -48,7 +48,7 @@ export function Shape({kind, slit = '#fff', width = 2.6, label = true, className
 }
 
 /** One P of the mark: a square stem, a bowl with a round end and a counter with a round end, on the logo's grid. */
-const MARK_P = 'M95 83H165A44.5 44.5 0 0 1 165 172H128V228H95ZM128 116V140H168A12 12 0 0 0 168 116Z';
+const MARK_P = 'M95 83H165A44.5 44.5 0 0 1 165 172H113V228H95ZM113 101V154H165A26.5 26.5 0 0 0 165 101Z';
 
 /**
  * The Probable Pieces mark: a P, and the same P turned half round (a d), its bowl tucked under the P's and its stem

@@ -1,4 +1,5 @@
 import {DownArrow, Shape, SHAPE_NAMES, type ShapeKind} from './Shapes';
+import {StudioNav} from './Nav';
 
 /**
  * The opening of the scroll, split down the middle: the Probable Pieces poster filling the left half in yellow, the
@@ -17,24 +18,23 @@ const PROBABLE: [string, number, number, number][] = [
 
 export function Hero() {
   return (
-    <section className="pp-hero" aria-label="Probable Pieces">
-      <div className="pp-hero-poster">
-        <div className="pp-poster">
-          <h1 className="pp-title" aria-label="Probable Pieces">
-            {[...PIECES, ...PROBABLE].map(([ch, x, y, deg], i) => (
-              <span key={i} aria-hidden style={{left: `${x}%`, top: `${y}%`, ['--turn' as string]: `${deg}deg`, ['--i' as string]: i}}>{ch}</span>
-            ))}
-          </h1>
-          <p className="pp-credit">Maya Kiernan &amp;<br />Andrew Gorovoy</p>
+    <>
+      <StudioNav current="home" />
+      <section className="pp-hero" aria-label="Probable Pieces">
+        <div className="pp-hero-poster">
+          <div className="pp-poster">
+            <h1 className="pp-title" aria-label="Probable Pieces">
+              {[...PIECES, ...PROBABLE].map(([ch, x, y, deg], i) => (
+                <span key={i} aria-hidden style={{left: `${x}%`, top: `${y}%`, ['--turn' as string]: `${deg}deg`, ['--i' as string]: i}}>{ch}</span>
+              ))}
+            </h1>
+            <p className="pp-credit">Maya Kiernan &amp;<br />Andrew Gorovoy</p>
+          </div>
         </div>
-      </div>
-      <div className="pp-hero-shapes"><SlotShapes /></div>
-      <nav className="pp-head" aria-label="Pages">
-        <a href="atlas/">Atlas</a>
-        <a href="blog/">Blog</a>
-      </nav>
-      <DownArrow />
-    </section>
+        <div className="pp-hero-shapes"><SlotShapes /></div>
+        <DownArrow />
+      </section>
+    </>
   );
 }
 

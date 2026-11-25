@@ -5,7 +5,7 @@ export function PossibleLink() {
   return (
     <a className="pp-possible-link" href="../atlas/">
       <span>See what’s possible</span>
-      <DotArrow className="pp-possible-arrow" />
+      <DotArrow className="st-action-arrow" />
     </a>
   );
 }

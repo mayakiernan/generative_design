@@ -69,10 +69,10 @@ body{min-height:100svh;background-color:var(--pp-paper);font-family:var(--pp-bod
 @media (prefers-reduced-motion:reduce){.pp-space-circle,.pp-space-have{transition:none}.pp-space-count{animation:none}}
 
 /* the way out of the scroll: into the atlas */
-.pp-possible-link{--button-height:clamp(76px,17svh,110px);--button-inset:clamp(14px,4vw,25px);--arrow-width:clamp(34px,9vw,62px);display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(12px,4vw,36px);width:min(100%,450px);min-height:var(--button-height);padding:14px var(--button-inset);border:1px solid currentColor;background:#313131;color:var(--pp-yellow);text-decoration:none;font:400 clamp(1rem,3.9vw,1.625rem)/1.2 var(--pp-body);text-transform:uppercase}
-.pp-possible-link:hover,.pp-possible-link:focus-visible{background:#3b3b3b}
+.pp-possible-link,.pa-go{--button-height:clamp(76px,17svh,110px);--button-inset:clamp(14px,4vw,25px);--arrow-width:clamp(34px,9vw,62px);display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(12px,4vw,36px);min-height:var(--button-height);padding:14px var(--button-inset);font:400 clamp(1rem,3.9vw,1.625rem)/1.2 var(--pp-body);text-transform:uppercase}
+.pp-possible-link{width:min(100%,450px);border:1px solid currentColor;background:transparent;color:var(--pp-yellow);text-decoration:none}
 .pp-possible-link:focus-visible{outline:2px solid var(--pp-yellow);outline-offset:4px}
-.pp-possible-arrow{align-self:center;width:var(--arrow-width);fill:currentColor;flex:none;transform:rotate(-45deg);transform:rotate(atan2(calc(var(--button-height) / -2),calc(1px + var(--button-inset) + var(--arrow-width) / 2)))}
+.st-action-arrow{align-self:center;width:var(--arrow-width);fill:currentColor;flex:none;transform:rotate(-45deg);transform:rotate(atan2(calc(var(--button-height) / -2),calc(1px + var(--button-inset) + var(--arrow-width) / 2)))}
 
 /* ---------- atlas page ---------- */
 .pa{min-height:100svh;color:var(--pp-ink)}
@@ -96,7 +96,7 @@ body{min-height:100svh;background-color:var(--pp-paper);font-family:var(--pp-bod
 .pa-purpose{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4em;white-space:normal}
 .pa-purpose .pa-text{flex:1 1 9em}
 .pa-right .pa-mode{margin-top:2vh}
-.pa-go{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;border:0;background:var(--pp-yellow);color:#111;padding:clamp(16px,2.2vw,24px) clamp(20px,2.4vw,28px);font:700 clamp(30px,3.6vw,46px)/1 var(--pp-title);text-transform:uppercase;text-align:left;transition:transform .25s}
+.pa-go{margin-top:auto;border:1px solid transparent;background:var(--pp-yellow);color:#111;text-align:left;transition:transform .25s}
 .pa-go:hover:not(:disabled){transform:translateX(5px)}
 .pa-arrow{width:clamp(34px,3.4vw,48px);fill:#111;flex:none}
 

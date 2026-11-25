@@ -173,7 +173,7 @@ export function Atlas() {
             {agent ? <p className="ag-hint">The model designs it piece by piece, checks that it stands and can be built, and looks at each version. A run takes a few minutes.</p> : fields.mode}
             <button className="pa-go" type="submit" disabled={!agent && !run}>
               <span>{agent || run ? 'Explore' : 'Loading…'}</span>
-              <DotArrow />
+              <DotArrow className="st-action-arrow" />
             </button>
           </div>
         </form>

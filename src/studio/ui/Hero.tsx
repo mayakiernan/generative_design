@@ -19,7 +19,7 @@ const PROBABLE: [string, number, number, number][] = [
 export function Hero() {
   return (
     <>
-      <StudioNav current="home" />
+      <StudioNav current="pieces" />
       <section className="pp-hero" aria-label="Probable Pieces">
         <div className="pp-hero-poster">
           <div className="pp-poster">

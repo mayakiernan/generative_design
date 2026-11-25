@@ -10,6 +10,14 @@
       "destination": "/studio/"
     },
     {
+      "source": "/possible-pieces",
+      "destination": "/studio/possible-pieces/"
+    },
+    {
+      "source": "/possible-pieces/",
+      "destination": "/studio/possible-pieces/"
+    },
+    {
       "source": "/atlas",
       "destination": "/studio/atlas/"
     },

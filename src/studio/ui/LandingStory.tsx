@@ -1,23 +1,35 @@
-import {useEffect, useRef} from 'react';
+import {lazy, Suspense, useState} from 'react';
 import {PieceStory} from './PieceStory';
-import {DesignSpace} from './DesignSpace';
 import {Possible} from './Possible';
 
-export default function LandingStory() {
-  const story = useRef<HTMLElement>(null);
+const DesignSpace = lazy(() => import('./DesignSpace').then(module => ({default: module.DesignSpace})));
 
-  useEffect(() => {
-    const section = story.current;
-    if (!section) return;
-    section.focus({preventScroll: true});
-    section.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
-  }, []);
+function focusAndScroll(section: HTMLElement | null) {
+  if (!section) return;
+  section.focus({preventScroll: true});
+  section.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+}
+
+export default function LandingStory() {
+  const [showDesignSpace, setShowDesignSpace] = useState(false);
+
+  function revealDesignSpace() {
+    if (showDesignSpace) return false;
+    setShowDesignSpace(true);
+    return true;
+  }
 
   return (
-    <main ref={story} tabIndex={-1} aria-label="The Possible Pieces story">
-      <PieceStory />
-      <DesignSpace />
-      <Possible />
+    <main ref={focusAndScroll} tabIndex={-1} aria-label="The Possible Pieces story">
+      <PieceStory onContinue={revealDesignSpace} />
+      {showDesignSpace && (
+        <Suspense fallback={null}>
+          <div ref={focusAndScroll} tabIndex={-1} role="region" aria-label="Design space">
+            <DesignSpace />
+            <Possible />
+          </div>
+        </Suspense>
+      )}
     </main>
   );
 }

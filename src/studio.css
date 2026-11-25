@@ -327,7 +327,7 @@ body{min-height:100svh;background-color:var(--pp-paper);font-family:var(--pp-bod
 a.pp-directory-tab:hover,.pp-directory-feature:hover{background:#cbaac8}
 .pp-directory a:focus-visible{outline:2px solid #111;outline-offset:-4px}
 .pp-landing-nav{background:linear-gradient(to right,var(--pp-yellow) 50%,var(--pp-paper) 50%)}
-.pp-landing-nav .st-home{width:50%;justify-items:start;padding-left:12px;border-bottom:1px solid #111}
+.pp-landing-nav .st-home{width:50%;justify-items:start;padding-left:12px}
 .pp-landing-nav .st-links{grid-template-columns:minmax(0,1fr);width:clamp(120px,12vw,160px);margin:4px 12px 4px 0}
 @media (max-width:700px){
   .pp-directory-links{grid-template-columns:minmax(0,1fr) repeat(4,clamp(27px,8vw,46px))}

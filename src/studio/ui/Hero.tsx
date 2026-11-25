@@ -16,7 +16,7 @@ const PROBABLE: [string, number, number, number][] = [
   ['R', 22.2, 9.4, -22], ['O', 32.9, 18.9, 0], ['B', 47.3, 19.2, 0], ['A', 59.9, 27.6, -16], ['B', 59.9, 40.4, -36], ['L', 70.5, 48.1, 0], ['E', 70.5, 59.4, 0],
 ];
 
-export function Hero() {
+export function Hero({onContinue}: {onContinue: () => boolean}) {
   return (
     <>
       <StudioNav current="pieces" />
@@ -32,7 +32,7 @@ export function Hero() {
           </div>
         </div>
         <div className="pp-hero-shapes"><SlotShapes /></div>
-        <DownArrow />
+        <DownArrow onClick={onContinue} />
       </section>
     </>
   );

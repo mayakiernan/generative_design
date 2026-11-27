@@ -13,7 +13,7 @@ function Home() {
         <span className="pp-directory-tab">About</span>
         <a className="pp-directory-tab" href="./blog/">Blog</a>
         <a className="pp-directory-tab" href="./possible-pieces/">Possible Pieces</a>
-        <span className="pp-directory-tab">Bottles</span>
+        <a className="pp-directory-tab" href="./bottles/">Bottles</a>
       </nav>
     </main>
   );

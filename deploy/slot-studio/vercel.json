@@ -40,6 +40,14 @@
     {
       "source": "/blog/",
       "destination": "/studio/blog/"
+    },
+    {
+      "source": "/bottles",
+      "destination": "/studio/bottles/"
+    },
+    {
+      "source": "/bottles/",
+      "destination": "/studio/bottles/"
     }
   ]
 }

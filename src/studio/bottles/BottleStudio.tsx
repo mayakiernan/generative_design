@@ -6,7 +6,7 @@ import type {Evaluation, Params, Rule, RuleState, Rulebook} from './vendor/model
 import {type Dataset, type Rec, loadDataset, paramsOf, measuresOf, describe, marketRecs, evaluateRec, fmt, FAMILY, TIER_ORDER} from './data';
 import {featureTable, standardize, project, coords, kmeans, nearestCenter, columnWeights, axisLabel, type FeatureTable} from './space';
 import {SketchPad} from './SketchPad';
-import {Viewer} from './Viewer';
+import {Viewer, type Thread} from './Viewer';
 import {SpaceMap, type MapPoints} from './SpaceMap';
 import {Gallery, type TopGroup, type Placed} from './Gallery';
 import {Silhouette, Verdict, Conf} from './parts';
@@ -42,6 +42,8 @@ export function BottleStudio() {
   const [tip, setTip] = useState<{text: string; x: number; y: number} | null>(null);
   const [sketchWall, setSketchWall] = useState<'single' | 'double'>('double');
   const [section, setSection] = useState(false);
+  const [cap, setCap] = useState(true);
+  const [thread, setThread] = useState<Thread>('outer');
 
   useEffect(() => { loadDataset().then(setD); }, []);
   const book: Rulebook | null = D?.rulebook ?? null;
@@ -199,10 +201,12 @@ export function BottleStudio() {
               </label>
               {sketchRec && (
                 <div className="bs-sketch-3d">
-                  <Viewer prof={sketchRec.prof} cfg={sketchRec.p} section={section} />
+                  <Viewer prof={sketchRec.prof} cfg={sketchRec.p} section={section} cap={cap} thread={thread} />
                   <div className="bs-toggle">
                     {(['single', 'double'] as const).map(w => <button key={w} type="button" className={sketchWall === w ? 'on' : ''} onClick={() => setSketchWall(w)}>{w === 'single' ? 'Single' : 'Double'}</button>)}
                     <button type="button" className={section ? 'on' : ''} onClick={() => setSection(!section)}>Section</button>
+                    <button type="button" className={cap ? 'on' : ''} aria-pressed={cap} onClick={() => setCap(!cap)}>{sketchRec.p.form === 'tumbler' ? 'Lid' : 'Cap'}</button>
+                    {sketchRec.p.form !== 'tumbler' && <button type="button" className={thread === 'inner' ? 'on' : ''} aria-pressed={thread === 'inner'} onClick={() => setThread(thread === 'inner' ? 'outer' : 'inner')}>Inner thread</button>}
                   </div>
                 </div>
               )}
@@ -341,6 +345,8 @@ export function BottleStudio() {
 
 function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: Rec; book: Rulebook; state: RuleState; market: Rec[]; sketch?: number[]; onClose: () => void; onOpen: (r: Rec) => void}) {
   const [section, setSection] = useState(false);
+  const [cap, setCap] = useState(true);
+  const [thread, setThread] = useState<Thread>('outer');
   const ev: Evaluation = useMemo(() => evaluateRec(rec, book, state), [rec, book, state]);
   const sig = rec.sig ?? F.signature(rec.prof);
   const similar = useMemo(() => F.marketMatches(sig, market.map(r => r.market!), 4, String(rec.p.form)).filter(x => x.p !== rec.market), [sig, market, rec]);
@@ -358,10 +364,12 @@ function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: 
         <button type="button" className="pd-close" aria-label="Close" onClick={onClose}>×</button>
         <div>
           <div className="pd-view">
-            <Viewer prof={rec.prof} cfg={p} section={section} />
+            <Viewer prof={rec.prof} cfg={p} section={section} cap={cap} thread={thread} />
             <div className="pd-toggle">
               <button type="button" className={!section ? 'on' : ''} onClick={() => setSection(false)}>3D</button>
               <button type="button" className={section ? 'on' : ''} onClick={() => setSection(true)}>Section</button>
+              <button type="button" className={'bs-cap-btn' + (cap ? ' on' : '')} aria-pressed={cap} onClick={() => setCap(!cap)}>{p.form === 'tumbler' ? 'Lid' : 'Cap'}</button>
+              {p.form !== 'tumbler' && <button type="button" className={thread === 'inner' ? 'on' : ''} aria-pressed={thread === 'inner'} onClick={() => setThread(thread === 'inner' ? 'outer' : 'inner')}>Inner thread</button>}
             </div>
           </div>
           {rec.kind === 'market' && rec.market && (

@@ -1,4 +1,4 @@
-import {Fragment, useEffect, useMemo, useState} from 'react';
+import {Fragment, useEffect, useMemo, useRef, useState} from 'react';
 import type {Evaluation} from './vendor/model.mjs';
 import {type Rec, fmt} from './data';
 import {kmeansRows, contrastLabel, featureMean, nearestCenter, type FeatureTable} from './space';
@@ -12,6 +12,19 @@ interface Group { members: number[]; center: number[]; label: string; color?: st
 const LEAF = 30;       // a group this small shows its designs
 const MAX_SPLIT = 6;
 
+// Each gallery view is a browser history entry (#space/2/1), so Back and Forward, in the page or
+// the browser, step through the views you opened.
+const hashOf = (path: number[]) => (path.length ? '#space/' + path.join('/') : '#space');
+const pathOfHash = (): number[] => {
+  const m = /^#space((?:\/\d+)*)$/.exec(window.location.hash);
+  return m ? m[1].split('/').filter(Boolean).map(Number) : [];
+};
+interface NavState { gallery: number[]; gi: number }
+const navState = (): NavState | null => {
+  const s = window.history.state as NavState | null;
+  return s && Array.isArray(s.gallery) ? s : null;
+};
+
 /**
  * The design space as a gallery you zoom into: the clusters as cards, each opening into the smaller
  * groups inside it (k-means again on its own designs, labelled by what sets each apart), down to
@@ -20,9 +33,41 @@ const MAX_SPLIT = 6;
 export function Gallery({recs, table, w, top, evs, placed, onOpen}: {
   recs: Rec[]; table: FeatureTable; w: number[]; top: TopGroup[]; evs: Evaluation[]; placed: Placed[]; onOpen: (r: Rec) => void;
 }) {
-  const [path, setPath] = useState<number[]>([]);
+  const [path, setPath] = useState<number[]>(() => navState()?.gallery ?? pathOfHash());
+  const [gi, setGi] = useState(() => navState()?.gi ?? 0);
+  const maxGi = useRef(gi);
   const [onlyMake, setOnlyMake] = useState(true);
-  useEffect(() => { setPath([]); }, [top]);
+  const box = useRef<HTMLDivElement>(null);
+
+  // Open a view: a new history entry. Reset: replace the current one.
+  const go = (next: number[]) => {
+    const n = gi + 1;
+    window.history.pushState({gallery: next, gi: n} satisfies NavState, '', hashOf(next));
+    maxGi.current = n;
+    setGi(n); setPath(next);
+  };
+  const reset = () => {
+    window.history.replaceState({gallery: [], gi} satisfies NavState, '', hashOf([]));
+    setPath([]);
+  };
+  useEffect(() => {
+    if (!navState()) window.history.replaceState({gallery: path, gi} satisfies NavState, '', window.location.hash ? window.location.href : hashOf(path));
+    const onPop = () => { const s = navState(); setPath(s?.gallery ?? pathOfHash()); setGi(s?.gi ?? 0); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // New weights re-form the clusters, so the old path no longer means anything. (Changing a rule
+  // only changes what can be made, not the clusters, so it keeps the path.)
+  const clusterKey = top[0]?.center;
+  const firstKey = useRef(clusterKey);
+  useEffect(() => { if (clusterKey !== firstKey.current) { firstKey.current = clusterKey; reset(); } }, [clusterKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bring the gallery's top into view when a view opens below the fold.
+  useEffect(() => {
+    const el = box.current;
+    if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({block: 'start', behavior: 'smooth'});
+  }, [path]);
 
   const keep = (i: number) => !onlyMake || !!evs[i]?.canMake;
 
@@ -50,23 +95,40 @@ export function Gallery({recs, table, w, top, evs, placed, onOpen}: {
   const leaf = depth > 0 && levels.length === depth;   // the chosen group did not split: show its designs
   const shown = depth === 0 ? levels[0] : leaf ? null : levels[depth];
 
+  const siblings = depth > 0 ? levels[depth - 1] : null;
+
   return (
-    <div className="bs-gallery">
+    <div className="bs-gallery" ref={box}>
       <div className="bs-crumbs">
-        <button type="button" className={depth === 0 ? 'on' : ''} onClick={() => setPath([])}>All designs</button>
+        <span className="bs-nav">
+          <button type="button" aria-label="Back" title="Back" disabled={gi <= 0} onClick={() => window.history.back()}>←</button>
+          <button type="button" aria-label="Forward" title="Forward" disabled={gi >= maxGi.current} onClick={() => window.history.forward()}>→</button>
+        </span>
+        <button type="button" className={depth === 0 ? 'on' : ''} onClick={() => depth && go([])}>All designs</button>
         {chosen.map((g, d) => (
           <Fragment key={d}>
             <span aria-hidden>›</span>
-            <button type="button" className={d === depth - 1 ? 'on' : ''} onClick={() => setPath(path.slice(0, d + 1))}>{g.label}</button>
+            <button type="button" className={d === depth - 1 ? 'on' : ''} onClick={() => d !== depth - 1 && go(path.slice(0, d + 1))}>{g.label}</button>
           </Fragment>
         ))}
-        <label className="bs-check bs-crumbs-check"><input type="checkbox" checked={onlyMake} onChange={e => { setOnlyMake(e.target.checked); setPath([]); }} />Only what can be made</label>
+        <label className="bs-check bs-crumbs-check"><input type="checkbox" checked={onlyMake} onChange={e => { setOnlyMake(e.target.checked); reset(); }} />Only what can be made</label>
       </div>
+
+      {siblings && siblings.length > 1 && (
+        <div className="bs-siblings" role="tablist" aria-label="Groups at this level">
+          {siblings.map((g, j) => g.members.length > 0 && (
+            <button key={j} type="button" role="tab" aria-selected={j === path[depth - 1]} className={j === path[depth - 1] ? 'on' : ''}
+              onClick={() => j !== path[depth - 1] && go([...path.slice(0, depth - 1), j])}>
+              {g.color && <i style={{background: g.color}} />}{g.label}<span>{g.members.length.toLocaleString()}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {shown && (
         <div className="bs-gcards">
           {shown.map((g, j) => g.members.length > 0 && (
-            <GroupCard key={j} g={g} recs={recs} table={table} w={w} evs={evs} onClick={() => setPath([...path.slice(0, depth), j])} />
+            <GroupCard key={j} g={g} recs={recs} table={table} w={w} evs={evs} onClick={() => go([...path.slice(0, depth), j])} />
           ))}
         </div>
       )}

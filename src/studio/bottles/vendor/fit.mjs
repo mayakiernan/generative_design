@@ -316,6 +316,9 @@ export function marketRecords(market, book) {
   const out = [];
   for (const p of market.products) {
     let sig = p.sig, form = p.form;
+    // Listed height, diameter and mouth: build the bottle at those sizes and keep them. It is not
+    // rescaled to the label, because the plain model holds more than the real bottle and rescaling
+    // would move the listed mouth off its lid family. Capacity is the label's.
     if (!sig && p.height_mm) {
       const q = Object.assign({ form: p.form, wall: p.wall, route: 'tube', taper: 0, draft_deg: p.draft_deg || 0, waist: 0, waist_pos: 0.5, belly: 0, belly_pos: 0.5,
         shoulder_p: 1.2, heel_r_mm: 6, shoulder_h_mm: p.form === 'bottle' ? 28 : 0, neck_len_mm: p.form === 'bottle' ? 16 : 0 }, S.TYPICAL[p.wall],
@@ -323,9 +326,15 @@ export function marketRecords(market, book) {
       for (const k of Object.keys(S.TYPICAL.single).concat(Object.keys(S.TYPICAL.double))) if (q[k] === undefined) q[k] = 0;
       const lidH = p.form === 'tumbler' ? proc.lid_h_tumbler_mm : (p.mouth_mm || 0) < 52 ? proc.lid_h_narrow_mm : proc.lid_h_wide_mm;
       q.body_h_mm = p.height_mm - lidH - q.shoulder_h_mm - q.neck_len_mm;
-      sig = signature(S.buildProfile(q));
+      const prof = S.buildProfile(q);
+      const m = S.measure(prof, q, proc);
+      m.model_capacity_ml = m.capacity_ml;
+      m.capacity_ml = p.capacity_ml;
+      out.push(Object.assign({}, p, { sig: signature(prof), form: p.form, cfg: q, prof, m, source: 'dimensions' }));
+      continue;
     }
     if (!sig) { out.push(Object.assign({}, p, { sig: null })); continue; }
+    // An outline read from a photo has no units: it is scaled to the label capacity, so its sizes are approximate.
     form = form || S.formOf(S.sketchProfile(sig, FRACS, 100, 'bottle'));
     const cfg = Object.assign({ form, wall: p.wall, route: 'tube' }, S.TYPICAL[p.wall]);
     const { prof, m } = scaleToCapacity(sig, form, cfg, p.capacity_ml, proc);

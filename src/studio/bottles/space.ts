@@ -88,10 +88,16 @@ export function coords(pr: Projection, r: Float64Array): [number, number, number
 
 // k-means++ on the weighted features, seeded so the same weights give the same clusters.
 export function kmeans(t: FeatureTable, w: number[], k: number, seed = 7): {assign: Int32Array; centers: number[][]} {
+  return kmeansRows(t.rows, w, k, seed);
+}
+
+// The same on any subset of rows (the gallery splits a group this way).
+export function kmeansRows(rows: Float64Array[], w: number[], k: number, seed = 7): {assign: Int32Array; centers: number[][]} {
   let s = seed >>> 0;
   const rand = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-  const n = t.rows.length, d = w.length;
-  const X = t.rows.map(r => Float64Array.from(r, (v, i) => v * w[i]));
+  const n = rows.length, d = w.length;
+  k = Math.max(1, Math.min(k, n));
+  const X = rows.map(r => Float64Array.from(r, (v, i) => v * w[i]));
   const dist = (a: ArrayLike<number>, b: ArrayLike<number>) => { let q = 0; for (let i = 0; i < d; i++) q += (a[i] - b[i]) ** 2; return q; };
   const centers: number[][] = [Array.from(X[Math.floor(rand() * n)])];
   const dmin = X.map(x => dist(x, centers[0]));
@@ -128,7 +134,7 @@ export function nearestCenter(centers: number[][], r: Float64Array, w: number[])
 const ENDS: Record<string, [string, string]> = {
   tumbler: ['bottle', 'tumbler'], h_over_d: ['squat', 'tall'], log_capacity: ['small', 'large'], height: ['short', 'tall'],
   diameter: ['slim', 'wide'], mouth_id: ['small mouth', 'large mouth'], mouth_body: ['narrow neck', 'open top'],
-  fam_narrow: ['', 'narrow mouth'], fam_wide: ['', 'wide mouth'], fam_off: ['', 'odd mouth'], fam_rim: ['', 'tumbler rim'],
+  fam_narrow: ['', 'narrow mouth'], fam_wide: ['', 'wide mouth'], fam_off: ['', 'non-standard mouth'], fam_rim: ['', 'tumbler rim'],
   double: ['single wall', 'double wall'], gap: ['thin gap', 'wide gap'], steel: ['light steel', 'heavy steel'],
   drawn: ['tube', 'drawn'], expansion: ['straight body', 'bulged body'], passes: ['few passes', 'many passes'],
 };
@@ -139,4 +145,31 @@ export function axisLabel(t: FeatureTable, pr: Projection, i: number): [string, 
   const name = t.names[best];
   const ends = ENDS[name] ?? (name.startsWith('r@') ? ['narrow at ' + Math.round(+name.slice(2) * 100) + '%', 'wide at ' + Math.round(+name.slice(2) * 100) + '%'] : ['−', '+']);
   return ax[best] >= 0 ? [ends[0], ends[1]] : [ends[1], ends[0]];
+}
+
+// What sets a group apart from the group it was split from: the features whose weighted mean moved
+// most, in words ("tall, wide mouth").
+const SHAPE_ENDS = (f: number): [string, string] =>
+  f <= 0.15 ? ['narrow base', 'full base'] : f <= 0.65 ? ['pinched body', 'full body'] : f <= 0.75 ? ['low shoulder', 'high shoulder'] : ['slim neck', 'broad neck'];
+const endsOf = (name: string): [string, string] => ENDS[name] ?? (name.startsWith('r@') ? SHAPE_ENDS(+name.slice(2)) : ['', '']);
+
+export function featureMean(t: FeatureTable, idx: number[]): number[] {
+  const d = t.names.length, s = new Array(d).fill(0);
+  for (const i of idx) { const r = t.rows[i]; for (let j = 0; j < d; j++) s[j] += r[j]; }
+  return s.map(v => v / Math.max(idx.length, 1));
+}
+
+export function contrastLabel(t: FeatureTable, w: number[], members: number[], parentMean: number[], words = 2): string {
+  const a = featureMean(t, members);
+  const diffs = a.map((v, j) => ({j, s: (v - parentMean[j]) * w[j]})).sort((x, y) => Math.abs(y.s) - Math.abs(x.s));
+  const out: string[] = [];
+  for (const {j, s} of diffs) {
+    if (Math.abs(s) < 0.04) break;
+    const e = endsOf(t.names[j]), word = s > 0 ? e[1] : e[0];
+    if (!word || out.includes(word)) continue;
+    out.push(word);
+    if (out.length >= words) break;
+  }
+  const label = out.join(', ') || 'mixed';
+  return label[0].toUpperCase() + label.slice(1);
 }

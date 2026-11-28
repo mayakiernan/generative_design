@@ -8,6 +8,7 @@ import {featureTable, standardize, project, coords, kmeans, nearestCenter, colum
 import {SketchPad} from './SketchPad';
 import {Viewer} from './Viewer';
 import {SpaceMap, type MapPoints} from './SpaceMap';
+import {Gallery, type TopGroup, type Placed} from './Gallery';
 import {Silhouette, Verdict, Conf} from './parts';
 
 const PALETTE = ['#B891B6', '#EBD300', '#2B2B2B', '#7FA39C', '#D9824B', '#6E7FB8', '#A8A59C'];
@@ -33,6 +34,7 @@ export function BottleStudio() {
   const [capacity, setCapacity] = useState(500);
   const [publicLids, setPublicLids] = useState(true);
   const [weights, setWeights] = useState<Record<string, number>>(() => Object.fromEntries(S.GROUPS.map(g => [g.id, 1])));
+  const [view, setView] = useState<'gallery' | 'map'>('gallery');
   const [colorBy, setColorBy] = useState<ColorBy>('cluster');
   const [focus, setFocus] = useState<number | null>(null);
   const [open, setOpen] = useState<Rec | null>(null);
@@ -103,7 +105,7 @@ export function BottleStudio() {
     if (!base || !proj || !clusters) return [];
     return extra.map(r => {
       const z = standardize(base.table, S.features(r.prof, r.p, r.m));
-      return {xyz: coords(proj, z), cluster: nearestCenter(clusters.centers, z, proj.w)};
+      return {z, xyz: coords(proj, z), cluster: nearestCenter(clusters.centers, z, proj.w)};
     });
   }, [extra, base, proj, clusters]);
 
@@ -170,6 +172,9 @@ export function BottleStudio() {
     extra.forEach(r => m.set(r.key, r));
     return m;
   }, [base, extra]);
+
+  const top = useMemo<TopGroup[]>(() => (clusters ? clusterInfo.map(c => ({members: c.members, center: clusters.centers[c.c], label: c.label, color: PALETTE[c.c % PALETTE.length]})) : []), [clusterInfo, clusters]);
+  const placed = useMemo<Placed[]>(() => extra.flatMap((rec, j) => (extraCoords[j] ? [{rec, z: extraCoords[j].z}] : [])), [extra, extraCoords]);
 
   const marketInCluster = (c: number) => extra.map((r, j) => ({r, c: extraCoords[j]?.cluster})).filter(x => x.r.kind === 'market' && x.c === c).map(x => x.r);
 
@@ -263,7 +268,12 @@ export function BottleStudio() {
 
         <section className="bs-right" aria-label="Design space">
           <div className="bs-map-tools">
-            <label>Colour <select value={colorBy} onChange={e => { setColorBy(e.target.value as ColorBy); setFocus(null); }}>{COLOR_BY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+            <div className="bs-view">
+              <div className="bs-toggle">
+                {(['gallery', 'map'] as const).map(v => <button key={v} type="button" className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v === 'gallery' ? 'Gallery' : 'Map'}</button>)}
+              </div>
+              {view === 'map' && <label>Colour <select value={colorBy} onChange={e => { setColorBy(e.target.value as ColorBy); setFocus(null); }}>{COLOR_BY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>}
+            </div>
             <div className="bs-weights">
               {S.GROUPS.map(g => (
                 <label key={g.id}>
@@ -273,6 +283,10 @@ export function BottleStudio() {
               ))}
             </div>
           </div>
+          {view === 'gallery' && (base && proj && top.length
+            ? <Gallery recs={base.recs} table={base.table} w={proj.w} top={top} evs={evs} placed={placed} onOpen={setOpen} />
+            : <p className="bs-empty">Grouping the designs</p>)}
+          {view === 'map' && <>
           <div className="bs-map-wrap">
             <SpaceMap
               points={points} axes={axes}
@@ -315,6 +329,7 @@ export function BottleStudio() {
               </div>
             </div>
           )}
+          </>}
         </section>
       </main>
       {tip && <div className="bs-tip" style={{left: tip.x + 14, top: tip.y + 14}}>{tip.text}</div>}
@@ -350,9 +365,9 @@ function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: 
             </div>
           </div>
           {rec.kind === 'market' && rec.market && (
-            <div className="bs-sheet-product">
+            <div className={'bs-sheet-product' + (rec.market.image ? '' : ' no-img')}>
               {rec.market.image && <img src={rec.market.image} alt={rec.label} referrerPolicy="no-referrer" />}
-              <p>Outline read from {rec.market.image ? 'the product photo' : 'its listed height, diameter and mouth'}; gauges typical for its wall. <a href={rec.market.url} target="_blank" rel="noreferrer">Product page</a></p>
+              <p>{rec.market.source === 'photo' ? 'Outline read from the product photo, so its sizes are approximate.' : 'Sizes as listed; the outline is drawn from them.'} <a href={rec.market.url} target="_blank" rel="noreferrer">Product page</a></p>
             </div>
           )}
           {sketch && rec.kind !== 'sketch' && <div className="bs-sheet-overlay"><Silhouette prof={rec.prof} sketch={sketch} w={150} h={190} /><span>Dashed: your sketch</span></div>}
@@ -360,6 +375,7 @@ function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: 
         <div>
           <h2 className="pd-title">{rec.label}</h2>
           <p className="pd-label">{rec.sub}{rec.parent ? ' · fitted from ' + rec.parent : ''}</p>
+          {rec.market ? <MarketFacts mk={rec.market} /> : <>
           <dl className="pd-facts">
             <dt>Capacity</dt><dd>{fmt(m.capacity_ml, 'mL')}</dd>
             <dt>Height</dt><dd>{fmt(m.height_mm, 'mm')} (body; cap not included)</dd>
@@ -372,6 +388,7 @@ function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: 
             {m.heat_6h_c !== null && <><dt>After 6 h</dt><dd>{fmt(m.heat_6h_c, '°C')}, rough estimate</dd></>}
           </dl>
           <Verdict ev={ev} />
+          </>}
           {similar.length > 0 && (
             <>
               <h3 className="pd-title">Similar on the market</h3>
@@ -391,6 +408,33 @@ function DesignSheet({rec, book, state, market, sketch, onClose, onOpen}: {rec: 
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A product on sale: its listed facts, not a verdict. It is already made, and the rules judge new
+ * designs; checking a remodelled copy of it only reports where the model differs from the real bottle.
+ */
+function MarketFacts({mk}: {mk: F.MarketRecord}) {
+  const m = mk.m, listed = mk.source === 'dimensions';
+  const about = (v: number | null) => (v === null ? '—' : 'about ' + Math.round(v) + ' mm');
+  return (
+    <>
+      <dl className="pd-facts">
+        <dt>Capacity</dt><dd>{fmt(mk.capacity_ml, 'mL')}</dd>
+        <dt>Height</dt><dd>{listed && mk.height_mm ? fmt(mk.height_mm, 'mm') + ' with cap' : about(m.height_mm) + ' without cap'}</dd>
+        <dt>Diameter</dt><dd>{listed && mk.diameter_mm ? fmt(mk.diameter_mm, 'mm') : about(m.max_d_mm)}</dd>
+        {listed && mk.mouth_mm ? <><dt>Mouth</dt><dd>{fmt(mk.mouth_mm, 'mm')} · {FAMILY[m.mouth_family] ?? m.mouth_family}</dd></> : null}
+        <dt>Walls</dt><dd>{mk.wall === 'double' ? 'Double wall, vacuum' : 'Single wall'}</dd>
+        {mk.mass_g ? <><dt>Weight</dt><dd>{fmt(mk.mass_g, 'g')}</dd></> : null}
+      </dl>
+      <div className="bs-verdict">
+        <div className="bs-tier ok">
+          <div className="bs-tier-head"><span className="bs-dot" />On the market</div>
+          <ul><li className="ok"><span>Sold today, so it can be made. The rules judge new designs.</span></li></ul>
+        </div>
+      </div>
+    </>
   );
 }
 
